@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Manager - GitHub Edition</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // Service GitHub pour gérer les Gists
+        class GitHubService {
+            constructor() {
+                this.baseURL = 'https://api.github.com';
+                this.token = null;
+                this.username = null;
+            }
+
+            setCredentials(token, username) {
+                this.token = token;
+                this.username = username;
+                localStorage.setItem('github_token', token);
+                localStorage.setItem('github_username', username);
+            }
+
+            getStoredCredentials() {
+                return {
+                    token: localStorage.getItem('github_token'),
+                    username: localStorage.getItem('github_username')
+                };
+            }
+
+            clearCredentials() {
+                this.token = null;
+                this.username = null;
+                localStorage.removeItem('github_token');
+                localStorage.removeItem('github_username');
+                localStorage.removeItem('main_gist_id');
+            }
+
+            async verifyToken(token) {
+                try {
+                    const response = await fetch(`${this.baseURL}/user`, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const user = await response.json();
+                        return { valid: true, username: user.login, user };
+                    }
+                    return { valid: false };
+                } catch (error) {
+                    console.error('Token verification error:', error);
+                    return { valid: false };
+                }
+            }
+
+            async createGist(data, description = 'Contact Manager Data', isPublic = false) {
+                if (!this.token) throw new Error('No token configured');
+
+                const response = await fetch(`${this.baseURL}/gists`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        description,
+                        public: isPublic,
+                        files: {
+                            'contacts.json': {
+                                content: JSON.stringify(data, null, 2)
+                            }
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create gist');
+                }
+
+                return await response.json();
+            }
+
+            async updateGist(gistId, data, description) {
+                if (!this.token) throw new Error('No token configured');
+
+                const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        description: description || 'Contact Manager Data - Updated',
+                        files: {
+                            'contacts.json': {
+                                content: JSON.stringify(data, null, 2)
+                            }
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update gist');
+                }
+
+                return await response.json();
+            }
+
+            async getGist(gistId) {
+                const headers = {
+                    'Accept': 'application/vnd.github.v3+json'
+                };
+
+                if (this.token) {
+                    headers['Authorization'] = `token ${this.token}`;
+                }
+
+                const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
+                    headers
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch gist');
+                }
+
+                const gist = await response.json();
+                const content = gist.files['contacts.json']?.content;
+                
+                if (content) {
+                    return JSON.parse(content);
+                }
+                
+                return null;
+            }
+
+            async listGists() {
+                if (!this.token || !this.username) return [];
+
+                const response = await fetch(`${this.baseURL}/users/${this.username}/gists`, {
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (!response.ok) return [];
+
+                const gists = await response.json();
+                return gists.filter(g => 
+                    g.files['contacts.json'] && 
+                    g.description?.includes('Contact Manager')
+                );
+            }
+
+            async deleteGist(gistId) {
+                if (!this.token) throw new Error('No token configured');
+
+                const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete gist');
+                }
+
+                return true;
+            }
+        }
+
+        const githubService = new GitHubService();
+
+        // Composant principal
+        function App() {
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [user, setUser] = useState(null);
+            const [contacts, setContacts] = useState([]);
+            const [sharedGists, setSharedGists] = useState([]);
+            const [mainGistId, setMainGistId] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [syncing, setSyncing] = useState(false);
+            const [notification, setNotification] = useState(null);
+            const [view, setView] = useState('contacts');
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterTag, setFilterTag] = useState('all');
+
+            useEffect(() => {
+                checkExistingAuth();
+            }, []);
+
+            const checkExistingAuth = async () => {
+                const { token, username } = githubService.getStoredCredentials();
+                if (token && username) {
+                    const result = await githubService.verifyToken(token);
+                    if (result.valid) {
+                        githubService.setCredentials(token, username);
+                        setIsAuthenticated(true);
+                        setUser(result.user);
+                        await loadMainGist();
+                    } else {
+                        githubService.clearCredentials();
+                    }
+                }
+                setLoading(false);
+            };
+
+            const loadMainGist = async () => {
+                setLoading(true);
+                try {
+                    const storedGistId = localStorage.getItem('main_gist_id');
+                    if (storedGistId) {
+                        const data = await githubService.getGist(storedGistId);
+                        if (data) {
+                            setContacts(data.contacts || []);
+                            setSharedGists(data.sharedGists || []);
+                            setMainGistId(storedGistId);
+                        }
+                    } else {
+                        // Chercher un gist existant
+                        const gists = await githubService.listGists();
+                        const mainGist = gists.find(g => g.description?.includes('[MAIN]'));
+                        
+                        if (mainGist) {
+                            const data = await githubService.getGist(mainGist.id);
+                            setContacts(data.contacts || []);
+                            setSharedGists(data.sharedGists || []);
+                            setMainGistId(mainGist.id);
+                            localStorage.setItem('main_gist_id', mainGist.id);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading gist:', error);
+                    showNotification('Erreur lors du chargement des données', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const syncToGitHub = async () => {
+                if (!isAuthenticated) return;
+                
+                setSyncing(true);
+                try {
+                    const data = {
+                        contacts,
+                        sharedGists,
+                        lastUpdated: new Date().toISOString(),
+                        owner: user.login
+                    };
+
+                    if (mainGistId) {
+                        await githubService.updateGist(
+                            mainGistId,
+                            data,
+                            `[MAIN] Contact Manager Data - ${user.login}`
+                        );
+                    } else {
+                        const gist = await githubService.createGist(
+                            data,
+                            `[MAIN] Contact Manager Data - ${user.login}`,
+                            false
+                        );
+                        setMainGistId(gist.id);
+                        localStorage.setItem('main_gist_id', gist.id);
+                    }
+                    
+                    showNotification('Synchronisé avec GitHub!');
+                } catch (error) {
+                    console.error('Sync error:', error);
+                    showNotification('Erreur de synchronisation', 'error');
+                } finally {
+                    setSyncing(false);
+                }
+            };
+
+            const showNotification = (message, type = 'success') => {
+                setNotification({ message, type });
+                setTimeout(() => setNotification(null), 3000);
+            };
+
+            const handleLogin = async (token) => {
+                setLoading(true);
+                const result = await githubService.verifyToken(token);
+                
+                if (result.valid) {
+                    githubService.setCredentials(token, result.username);
+                    setIsAuthenticated(true);
+                    setUser(result.user);
+                    showNotification('Connexion réussie!');
+                    await loadMainGist();
+                } else {
+                    showNotification('Token invalide', 'error');
+                }
+                setLoading(false);
+            };
+
+            const handleLogout = () => {
+                githubService.clearCredentials();
+                setIsAuthenticated(false);
+                setUser(null);
+                setContacts([]);
+                setSharedGists([]);
+                setMainGistId(null);
+                showNotification('Déconnexion réussie');
+            };
+
+            const handleAddContact = (contactData) => {
+                const newContact = {
+                    ...contactData,
+                    id: Date.now(),
+                    createdAt: new Date().toISOString()
+                };
+                const newContacts = [...contacts, newContact];
+                setContacts(newContacts);
+                syncToGitHub();
+                showNotification('Contact ajouté');
+            };
+
+            const handleUpdateContact = (contactId, updates) => {
+                const newContacts = contacts.map(c => 
+                    c.id === contactId 
+                        ? { ...c, ...updates, updatedAt: new Date().toISOString() }
+                        : c
+                );
+                setContacts(newContacts);
+                syncToGitHub();
+                showNotification('Contact mis à jour');
+            };
+
+            const handleDeleteContact = (contactId) => {
+                if (confirm('Êtes-vous sûr de vouloir supprimer ce contact?')) {
+                    const newContacts = contacts.filter(c => c.id !== contactId);
+                    setContacts(newContacts);
+                    syncToGitHub();
+                    showNotification('Contact supprimé');
+                }
+            };
+
+            const handleShareContacts = async (selectedContacts, description) => {
+                setSyncing(true);
+                try {
+                    const shareData = {
+                        contacts: contacts.filter(c => selectedContacts.includes(c.id)),
+                        sharedBy: user.login,
+                        sharedAt: new Date().toISOString()
+                    };
+
+                    const gist = await githubService.createGist(
+                        shareData,
+                        description || `Contacts partagés par ${user.login}`,
+                        true // Public pour permettre le partage
+                    );
+
+                    const newShare = {
+                        id: gist.id,
+                        url: gist.html_url,
+                        description: gist.description,
+                        contactCount: shareData.contacts.length,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    setSharedGists([...sharedGists, newShare]);
+                    await syncToGitHub();
+                    
+                    showNotification('Contacts partagés! ID: ' + gist.id);
+                    
+                    // Copier l'URL dans le presse-papier
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(gist.html_url);
+                        showNotification('Lien copié dans le presse-papier!');
+                    }
+                } catch (error) {
+                    console.error('Share error:', error);
+                    showNotification('Erreur lors du partage', 'error');
+                } finally {
+                    setSyncing(false);
+                }
+            };
+
+            const handleImportFromGist = async (gistId) => {
+                setLoading(true);
+                try {
+                    const data = await githubService.getGist(gistId);
+                    if (data && data.contacts) {
+                        const importedContacts = data.contacts.map(c => ({
+                            ...c,
+                            id: Date.now() + Math.random(),
+                            imported: true,
+                            importedFrom: gistId,
+                            importedAt: new Date().toISOString()
+                        }));
+                        
+                        const newContacts = [...contacts, ...importedContacts];
+                        setContacts(newContacts);
+                        await syncToGitHub();
+                        
+                        showNotification(`${importedContacts.length} contacts importés!`);
+                    } else {
+                        showNotification('Aucun contact trouvé dans ce Gist', 'error');
+                    }
+                } catch (error) {
+                    console.error('Import error:', error);
+                    showNotification('Erreur lors de l\'import', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const exportToJSON = () => {
+                const data = {
+                    contacts,
+                    sharedGists,
+                    exportDate: new Date().toISOString(),
+                    owner: user?.login
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `contacts-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                
+                showNotification('Données exportées');
+            };
+
+            const importFromJSON = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            if (data.contacts) {
+                                setContacts(data.contacts);
+                                if (data.sharedGists) {
+                                    setSharedGists(data.sharedGists);
+                                }
+                                await syncToGitHub();
+                                showNotification('Données importées');
+                            }
+                        } catch (error) {
+                            showNotification('Erreur lors de l\'import', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
+                        <div className="text-white text-xl">
+                            <i className="fas fa-spinner fa-spin mr-2"></i>
+                            Chargement...
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
+                    {notification && (
+                        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${
+                            notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'
+                        } text-white`}>
+                            {notification.message}
+                        </div>
+                    )}
+
+                    {!isAuthenticated ? (
+                        <LoginScreen onLogin={handleLogin} />
+                    ) : (
+                        <Dashboard
+                            user={user}
+                            contacts={contacts}
+                            sharedGists={sharedGists}
+                            view={view}
+                            setView={setView}
+                            searchTerm={searchTerm}
+                            setSearchTerm={setSearchTerm}
+                            filterTag={filterTag}
+                            setFilterTag={setFilterTag}
+                            syncing={syncing}
+                            mainGistId={mainGistId}
+                            onAddContact={handleAddContact}
+                            onUpdateContact={handleUpdateContact}
+                            onDeleteContact={handleDeleteContact}
+                            onShareContacts={handleShareContacts}
+                            onImportFromGist={handleImportFromGist}
+                            onExportJSON={exportToJSON}
+                            onImportJSON={importFromJSON}
+                            onSync={syncToGitHub}
+                            onLogout={handleLogout}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // Écran de connexion
+        function LoginScreen({ onLogin }) {
+            const [token, setToken] = useState('');
+            const [showInstructions, setShowInstructions] = useState(false);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (token.trim()) {
+                    onLogin(token.trim());
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-8">
+                        <div className="text-center mb-8">
+                            <i className="fab fa-github text-6xl text-white mb-4"></i>
+                            <h1 className="text-3xl font-bold text-white">Contact Manager</h1>
+                            <p className="text-gray-400 mt-2">GitHub Edition</p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    GitHub Personal Access Token
+                                </label>
+                                <input
+                                    type="password"
+                                    required
+                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                                    value={token}
+                                    onChange={(e) => setToken(e.target.value)}
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold"
+                            >
+                                <i className="fab fa-github mr-2"></i>
+                                Se connecter avec GitHub
+                            </button>
+                        </form>
+
+                        <div className="mt-6">
+                            <button
+                                onClick={() => setShowInstructions(!showInstructions)}
+                                className="w-full text-gray-400 hover:text-white transition text-sm"
+                            >
+                                <i className="fas fa-info-circle mr-2"></i>
+                                Comment obtenir un token?
+                            </button>
+
+                            {showInstructions && (
+                                <div className="mt-4 p-4 bg-gray-700 rounded-lg text-sm text-gray-300 space-y-2">
+                                    <p className="font-semibold text-white">📝 Instructions:</p>
+                                    <ol className="list-decimal list-inside space-y-1">
+                                        <li>Allez sur <a href="https://github.com/settings/tokens" target="_blank" className="text-blue-400 hover:underline">GitHub Settings → Tokens</a></li>
+                                        <li>Cliquez sur "Generate new token (classic)"</li>
+                                        <li>Donnez un nom au token (ex: "Contact Manager")</li>
+                                        <li>Sélectionnez le scope <code className="bg-gray-600 px-1 rounded">gist</code></li>
+                                        <li>Cliquez sur "Generate token"</li>
+                                        <li>Copiez le token et collez-le ci-dessus</li>
+                                    </ol>
+                                    <div className="mt-3 p-2 bg-yellow-900 rounded text-yellow-200">
+                                        ⚠️ Ne partagez jamais votre token!
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-8 pt-6 border-t border-gray-700 text-center">
+                            <p className="text-xs text-gray-500">
+                                Vos données sont stockées dans vos Gists GitHub privés.<br/>
+                                Aucune donnée n'est envoyée à des serveurs tiers.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Dashboard principal
+        function Dashboard({
+            user,
+            contacts,
+            sharedGists,
+            view,
+            setView,
+            searchTerm,
+            setSearchTerm,
+            filterTag,
+            setFilterTag,
+            syncing,
+            mainGistId,
+            onAddContact,
+            onUpdateContact,
+            onDeleteContact,
+            onShareContacts,
+            onImportFromGist,
+            onExportJSON,
+            onImportJSON,
+            onSync,
+            onLogout
+        }) {
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [showShareModal, setShowShareModal] = useState(false);
+            const [showImportModal, setShowImportModal] = useState(false);
+            const [editingContact, setEditingContact] = useState(null);
+            const [viewMode, setViewMode] = useState('grid');
+            const fileInputRef = useRef();
+
+            const filteredContacts = contacts.filter(contact => {
+                const matchesSearch = searchTerm === '' || 
+                    contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    contact.company?.toLowerCase().includes(searchTerm.toLowerCase());
+                
+                const matchesTag = filterTag === 'all' || contact.tags?.includes(filterTag);
+                
+                return matchesSearch && matchesTag;
+            });
+
+            const allTags = [...new Set(contacts.flatMap(c => c.tags || []))];
+
+            return (
+                <div className="min-h-screen text-white">
+                    {/* Header */}
+                    <header className="bg-gray-900 shadow-lg border-b border-gray-700">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center space-x-4">
+                                    <i className="fab fa-github text-3xl"></i>
+                                    <div>
+                                        <h1 className="text-2xl font-bold">Contact Manager</h1>
+                                        <p className="text-sm text-gray-400">GitHub Edition</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center space-x-4">
+                                    {syncing && (
+                                        <div className="text-blue-400">
+                                            <i className="fas fa-sync fa-spin mr-2"></i>
+                                            Synchronisation...
+                                        </div>
+                                    )}
+                                    
+                                    <div className="flex items-center space-x-2 bg-gray-800 px-4 py-2 rounded-lg">
+                                        <img 
+                                            src={user.avatar_url} 
+                                            alt={user.login}
+                                            className="w-8 h-8 rounded-full"
+                                        />
+                                        <span className="text-sm font-medium">{user.login}</span>
+                                    </div>
+
+                                    <button
+                                        onClick={onSync}
+                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                                        disabled={syncing}
+                                    >
+                                        <i className="fas fa-sync mr-2"></i>
+                                        Sync
+                                    </button>
+
+                                    <button
+                                        onClick={onLogout}
+                                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+                                    >
+                                        <i className="fas fa-sign-out-alt mr-2"></i>
+                                        Déconnexion
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Navigation */}
+                    <div className="bg-gray-850 border-b border-gray-700">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <nav className="flex space-x-8 py-4">
+                                <button
+                                    onClick={() => setView('contacts')}
+                                    className={`pb-2 border-b-2 transition ${
+                                        view === 'contacts' 
+                                            ? 'border-blue-500 text-blue-400' 
+                                            : 'border-transparent text-gray-400 hover:text-white'
+                                    }`}
+                                >
+                                    <i className="fas fa-address-book mr-2"></i>
+                                    Contacts ({contacts.length})
+                                </button>
+                                <button
+                                    onClick={() => setView('shares')}
+                                    className={`pb-2 border-b-2 transition ${
+                                        view === 'shares' 
+                                            ? 'border-blue-500 text-blue-400' 
+                                            : 'border-transparent text-gray-400 hover:text-white'
+                                    }`}
+                                >
+                                    <i className="fas fa-share-alt mr-2"></i>
+                                    Partages ({sharedGists.length})
+                                </button>
+                                <button
+                                    onClick={() => setView('settings')}
+                                    className={`pb-2 border-b-2 transition ${
+                                        view === 'settings' 
+                                            ? 'border-blue-500 text-blue-400' 
+                                            : 'border-transparent text-gray-400 hover:text-white'
+                                    }`}
+                                >
+                                    <i className="fas fa-cog mr-2"></i>
+                                    Paramètres
+                                </button>
+                            </nav>
+                        </div>
+                    </div>
+
+                    {/* Contenu principal */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                        {view === 'contacts' && (
+                            <>
+                                {/* Barre d'outils */}
+                                <div className="bg-gray-800 rounded-lg p-4 mb-6">
+                                    <div className="flex flex-wrap gap-4 items-center justify-between">
+                                        <div className="flex flex-wrap gap-3 items-center flex-1">
+                                            <div className="relative flex-1 max-w-md">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Rechercher..."
+                                                    className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                    value={searchTerm}
+                                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                                />
+                                                <i className="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                            </div>
+
+                                            {allTags.length > 0 && (
+                                                <select
+                                                    className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                    value={filterTag}
+                                                    onChange={(e) => setFilterTag(e.target.value)}
+                                                >
+                                                    <option value="all">Tous les tags</option>
+                                                    {allTags.map(tag => (
+                                                        <option key={tag} value={tag}>{tag}</option>
+                                                    ))}
+                                                </select>
+                                            )}
+
+                                            <div className="flex bg-gray-700 rounded-lg p-1">
+                                                <button
+                                                    className={`px-3 py-1 rounded ${viewMode === 'grid' ? 'bg-gray-600' : ''}`}
+                                                    onClick={() => setViewMode('grid')}
+                                                >
+                                                    <i className="fas fa-th"></i>
+                                                </button>
+                                                <button
+                                                    className={`px-3 py-1 rounded ${viewMode === 'list' ? 'bg-gray-600' : ''}`}
+                                                    onClick={() => setViewMode('list')}
+                                                >
+                                                    <i className="fas fa-list"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setShowAddModal(true)}
+                                                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                                            >
+                                                <i className="fas fa-plus mr-2"></i>
+                                                Nouveau
+                                            </button>
+
+                                            <button
+                                                onClick={() => setShowShareModal(true)}
+                                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+                                                disabled={contacts.length === 0}
+                                            >
+                                                <i className="fas fa-share mr-2"></i>
+                                                Partager
+                                            </button>
+
+                                            <button
+                                                onClick={() => setShowImportModal(true)}
+                                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                                            >
+                                                <i className="fas fa-download mr-2"></i>
+                                                Importer
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Liste des contacts */}
+                                {filteredContacts.length === 0 ? (
+                                    <div className="bg-gray-800 rounded-lg p-12 text-center">
+                                        <i className="fas fa-user-friends text-gray-600 text-6xl mb-4"></i>
+                                        <p className="text-gray-400">Aucun contact trouvé</p>
+                                        <button
+                                            onClick={() => setShowAddModal(true)}
+                                            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+                                        >
+                                            Ajouter votre premier contact
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className={viewMode === 'grid' ? 
+                                        'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 
+                                        'space-y-2'
+                                    }>
+                                        {filteredContacts.map(contact => (
+                                            <ContactCard
+                                                key={contact.id}
+                                                contact={contact}
+                                                viewMode={viewMode}
+                                                onEdit={() => setEditingContact(contact)}
+                                                onDelete={() => onDeleteContact(contact.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {view === 'shares' && (
+                            <div className="space-y-4">
+                                <h2 className="text-2xl font-bold mb-4">Gists Partagés</h2>
+                                
+                                {sharedGists.length === 0 ? (
+                                    <div className="bg-gray-800 rounded-lg p-12 text-center">
+                                        <i className="fas fa-share-alt text-gray-600 text-6xl mb-4"></i>
+                                        <p className="text-gray-400">Aucun partage actif</p>
+                                        <button
+                                            onClick={() => {
+                                                setView('contacts');
+                                                setShowShareModal(true);
+                                            }}
+                                            className="mt-4 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition"
+                                        >
+                                            Partager des contacts
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-4">
+                                        {sharedGists.map(gist => (
+                                            <div key={gist.id} className="bg-gray-800 rounded-lg p-4">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h3 className="font-semibold text-lg">{gist.description}</h3>
+                                                        <p className="text-gray-400 text-sm">
+                                                            {gist.contactCount} contacts • Créé le {new Date(gist.createdAt).toLocaleDateString()}
+                                                        </p>
+                                                        <div className="mt-2 flex items-center space-x-4">
+                                                            <code className="bg-gray-700 px-2 py-1 rounded text-xs">
+                                                                {gist.id}
+                                                            </code>
+                                                            <a
+                                                                href={gist.url}
+                                                                target="_blank"
+                                                                className="text-blue-400 hover:underline text-sm"
+                                                            >
+                                                                <i className="fas fa-external-link-alt mr-1"></i>
+                                                                Voir sur GitHub
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(gist.url);
+                                                            showNotification('URL copiée!');
+                                                        }}
+                                                        className="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600 transition"
+                                                    >
+                                                        <i className="fas fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {view === 'settings' && (
+                            <div className="space-y-6">
+                                <h2 className="text-2xl font-bold mb-4">Paramètres</h2>
+                                
+                                <div className="bg-gray-800 rounded-lg p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Informations GitHub</h3>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-400">Utilisateur:</span>
+                                            <span className="font-mono">{user.login}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-400">Gist principal:</span>
+                                            <span className="font-mono text-sm">{mainGistId || 'Non créé'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-400">Contacts stockés:</span>
+                                            <span>{contacts.length}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-800 rounded-lg p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Export/Import Local</h3>
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={onExportJSON}
+                                            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                                        >
+                                            <i className="fas fa-file-export mr-2"></i>
+                                            Exporter JSON
+                                        </button>
+                                        
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".json"
+                                            onChange={onImportJSON}
+                                            className="hidden"
+                                        />
+                                        <button
+                                            onClick={() => fileInputRef.current.click()}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                                        >
+                                            <i className="fas fa-file-import mr-2"></i>
+                                            Importer JSON
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-800 rounded-lg p-6">
+                                    <h3 className="text-lg font-semibold mb-4">À propos</h3>
+                                    <p className="text-gray-400 text-sm">
+                                        Contact Manager utilise GitHub Gists pour stocker vos données de manière sécurisée.
+                                        Vos contacts sont sauvegardés dans des Gists privés accessibles uniquement avec votre token.
+                                        Les partages créent des Gists publics avec un ID unique.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Modals */}
+                    {(showAddModal || editingContact) && (
+                        <ContactModal
+                            contact={editingContact}
+                            onSave={(data) => {
+                                if (editingContact) {
+                                    onUpdateContact(editingContact.id, data);
+                                } else {
+                                    onAddContact(data);
+                                }
+                                setShowAddModal(false);
+                                setEditingContact(null);
+                            }}
+                            onClose={() => {
+                                setShowAddModal(false);
+                                setEditingContact(null);
+                            }}
+                        />
+                    )}
+
+                    {showShareModal && (
+                        <ShareModal
+                            contacts={contacts}
+                            onShare={onShareContacts}
+                            onClose={() => setShowShareModal(false)}
+                        />
+                    )}
+
+                    {showImportModal && (
+                        <ImportModal
+                            onImport={onImportFromGist}
+                            onClose={() => setShowImportModal(false)}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // Carte de contact
+        function ContactCard({ contact, viewMode, onEdit, onDelete }) {
+            if (viewMode === 'list') {
+                return (
+                    <div className="bg-gray-800 rounded-lg p-4 flex items-center justify-between hover:bg-gray-750 transition">
+                        <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                {contact.name?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div>
+                                <h3 className="font-semibold">{contact.name}</h3>
+                                <p className="text-sm text-gray-400">{contact.email}</p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                            {contact.imported && (
+                                <span className="bg-green-800 text-green-300 text-xs px-2 py-1 rounded">
+                                    Importé
+                                </span>
+                            )}
+                            {contact.tags?.map(tag => (
+                                <span key={tag} className="bg-blue-800 text-blue-300 text-xs px-2 py-1 rounded">
+                                    {tag}
+                                </span>
+                            ))}
+                            
+                            <div className="flex space-x-1 ml-4">
+                                <button
+                                    onClick={onEdit}
+                                    className="p-2 text-blue-400 hover:bg-gray-700 rounded transition"
+                                >
+                                    <i className="fas fa-edit"></i>
+                                </button>
+                                <button
+                                    onClick={onDelete}
+                                    className="p-2 text-red-400 hover:bg-gray-700 rounded transition"
+                                >
+                                    <i className="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="bg-gray-800 rounded-lg hover:bg-gray-750 transition">
+                    <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                                {contact.name?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            {contact.imported && (
+                                <span className="bg-green-800 text-green-300 text-xs px-2 py-1 rounded">
+                                    Importé
+                                </span>
+                            )}
+                        </div>
+
+                        <h3 className="text-lg font-semibold mb-2">{contact.name}</h3>
+                        
+                        <div className="space-y-2 text-sm text-gray-400">
+                            {contact.email && (
+                                <div className="flex items-center">
+                                    <i className="fas fa-envelope w-5"></i>
+                                    <span className="ml-2 truncate">{contact.email}</span>
+                                </div>
+                            )}
+                            {contact.phone && (
+                                <div className="flex items-center">
+                                    <i className="fas fa-phone w-5"></i>
+                                    <span className="ml-2">{contact.phone}</span>
+                                </div>
+                            )}
+                            {contact.company && (
+                                <div className="flex items-center">
+                                    <i className="fas fa-building w-5"></i>
+                                    <span className="ml-2">{contact.company}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {contact.tags && contact.tags.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-1">
+                                {contact.tags.map(tag => (
+                                    <span key={tag} className="bg-blue-800 text-blue-300 text-xs px-2 py-1 rounded">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {contact.notes && (
+                            <div className="mt-4 p-3 bg-gray-700 rounded text-sm text-gray-300">
+                                {contact.notes}
+                            </div>
+                        )}
+
+                        <div className="mt-4 flex space-x-2 pt-4 border-t border-gray-700">
+                            <button
+                                onClick={onEdit}
+                                className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+                            >
+                                <i className="fas fa-edit mr-2"></i>
+                                Modifier
+                            </button>
+                            <button
+                                onClick={onDelete}
+                                className="p-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                            >
+                                <i className="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Modal d'ajout/édition
+        function ContactModal({ contact, onSave, onClose }) {
+            const [formData, setFormData] = useState({
+                name: contact?.name || '',
+                email: contact?.email || '',
+                phone: contact?.phone || '',
+                company: contact?.company || '',
+                address: contact?.address || '',
+                notes: contact?.notes || '',
+                tags: contact?.tags?.join(', ') || ''
+            });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const data = {
+                    ...formData,
+                    tags: formData.tags.split(',').map(t => t.trim()).filter(t => t)
+                };
+                onSave(data);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-800 rounded-lg max-w-md w-full p-6">
+                        <h2 className="text-xl font-bold mb-4">
+                            {contact ? 'Modifier le contact' : 'Nouveau contact'}
+                        </h2>
+                        
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    Nom complet *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    Téléphone
+                                </label>
+                                <input
+                                    type="tel"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    Entreprise
+                                </label>
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    value={formData.company}
+                                    onChange={(e) => setFormData({...formData, company: e.target.value})}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    Tags (séparés par des virgules)
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="famille, travail, ami..."
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    value={formData.tags}
+                                    onChange={(e) => setFormData({...formData, tags: e.target.value})}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">
+                                    Notes
+                                </label>
+                                <textarea
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    rows="3"
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                ></textarea>
+                            </div>
+
+                            <div className="flex space-x-3 pt-4">
+                                <button
+                                    type="submit"
+                                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+                                >
+                                    <i className="fas fa-save mr-2"></i>
+                                    {contact ? 'Mettre à jour' : 'Enregistrer'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="flex-1 bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition"
+                                >
+                                    Annuler
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        // Modal de partage
+        function ShareModal({ contacts, onShare, onClose }) {
+            const [selectedContacts, setSelectedContacts] = useState([]);
+            const [description, setDescription] = useState('');
+
+            const toggleContact = (contactId) => {
+                setSelectedContacts(prev => 
+                    prev.includes(contactId) 
+                        ? prev.filter(id => id !== contactId)
+                        : [...prev, contactId]
+                );
+            };
+
+            const handleShare = () => {
+                if (selectedContacts.length > 0) {
+                    onShare(selectedContacts, description);
+                    onClose();
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-800 rounded-lg max-w-2xl w-full p-6">
+                        <h2 className="text-xl font-bold mb-4">
+                            Partager des contacts via GitHub Gist
+                        </h2>
+                        
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                Description du partage
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Ex: Contacts famille, Clients 2024..."
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                Sélectionner les contacts à partager
+                            </label>
+                            <div className="bg-gray-700 rounded-lg p-2 max-h-60 overflow-y-auto">
+                                {contacts.map(contact => (
+                                    <label key={contact.id} className="flex items-center p-2 hover:bg-gray-600 rounded cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="mr-3"
+                                            checked={selectedContacts.includes(contact.id)}
+                                            onChange={() => toggleContact(contact.id)}
+                                        />
+                                        <div className="flex-1">
+                                            <p className="font-medium">{contact.name}</p>
+                                            <p className="text-sm text-gray-400">{contact.email}</p>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-900 bg-opacity-50 rounded-lg p-4 mb-4">
+                            <p className="text-sm text-blue-300">
+                                <i className="fas fa-info-circle mr-2"></i>
+                                Un Gist public sera créé avec les contacts sélectionnés. 
+                                Vous pourrez partager l'URL ou l'ID du Gist avec d'autres utilisateurs.
+                            </p>
+                        </div>
+
+                        <div className="flex space-x-3">
+                            <button
+                                onClick={handleShare}
+                                disabled={selectedContacts.length === 0}
+                                className="flex-1 bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <i className="fas fa-share mr-2"></i>
+                                Créer le partage ({selectedContacts.length} contacts)
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="flex-1 bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition"
+                            >
+                                Annuler
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Modal d'import
+        function ImportModal({ onImport, onClose }) {
+            const [gistId, setGistId] = useState('');
+
+            const handleImport = () => {
+                if (gistId.trim()) {
+                    // Extraire l'ID du Gist depuis une URL complète ou utiliser directement l'ID
+                    const id = gistId.includes('github.com') 
+                        ? gistId.split('/').pop() 
+                        : gistId.trim();
+                    
+                    onImport(id);
+                    onClose();
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-800 rounded-lg max-w-md w-full p-6">
+                        <h2 className="text-xl font-bold mb-4">
+                            Importer depuis un Gist
+                        </h2>
+                        
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                ID ou URL du Gist
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Ex: abc123def456 ou https://gist.github.com/..."
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                value={gistId}
+                                onChange={(e) => setGistId(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="bg-yellow-900 bg-opacity-50 rounded-lg p-4 mb-4">
+                            <p className="text-sm text-yellow-300">
+                                <i className="fas fa-exclamation-triangle mr-2"></i>
+                                Assurez-vous que le Gist contient des données de Contact Manager valides.
+                            </p>
+                        </div>
+
+                        <div className="flex space-x-3">
+                            <button
+                                onClick={handleImport}
+                                disabled={!gistId.trim()}
+                                className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <i className="fas fa-download mr-2"></i>
+                                Importer
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="flex-1 bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition"
+                            >
+                                Annuler
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Rendu de l'application
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
