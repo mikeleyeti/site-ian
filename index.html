@@ -3,88 +3,432 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestionnaire de Contacts Professionnel</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>IAN - Écosystème Interactif</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Intro:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-        
-        * {
-            font-family: 'Poppins', sans-serif;
+        body {
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #006a6f 0%, #004d52 100%);
+            min-height: 100%;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Intro', sans-serif;
         }
         
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .card-hover {
+        .nav-card {
             transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .nav-card:hover {
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
         }
         
-        .card-hover:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        .page-container {
+            display: none;
+        }
+        .page-container.active {
+            display: block;
         }
         
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+        .tool-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
         }
         
         .contact-card {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
             transition: all 0.3s ease;
+            border: 2px solid transparent;
         }
-        
         .contact-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transform: translateY(-2px) scale(1.1);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #6b7280;
+            z-index: 10;
         }
         
-        .floating {
-            animation: floating 3s ease-in-out infinite;
+        .star-rating {
+            display: inline-flex;
+            gap: 2px;
+        }
+        .star {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+            filter: grayscale(100%);
+            transform: scale(1);
+        }
+        .star:hover {
+            color: #fbbf24;
+            filter: grayscale(0%);
+            transform: scale(1.2);
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+        }
+        .star.active {
+            color: #f59e0b;
+            filter: grayscale(0%);
+            transform: scale(1.1);
+            text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+        }
+        .star.active:hover {
+            transform: scale(1.3);
         }
         
-        @keyframes floating {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
+        .urgence-filter-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
         
-        .slide-in {
-            animation: slideIn 0.5s ease-out;
+        .urgence-filter-btn:hover {
+            transform: scale(1.05);
         }
         
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .urgence-filter-btn.active {
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .urgence-filter-btn.urgente {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+        .urgence-filter-btn.urgente.active {
+            background-color: #dc2626;
+            color: white;
+            border-color: #dc2626;
+        }
+        
+        .urgence-filter-btn.importante {
+            background-color: #fed7aa;
+            color: #ea580c;
+            border-color: #fdba74;
+        }
+        .urgence-filter-btn.importante.active {
+            background-color: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+        
+        .urgence-filter-btn.normale {
+            background-color: #dbeafe;
+            color: #2563eb;
+            border-color: #bfdbfe;
+        }
+        .urgence-filter-btn.normale.active {
+            background-color: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        
+        .login-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #006a6f 0%, #004d52 100%);
+            z-index: 9999;
+        }
+        .login-screen.active {
+            display: flex;
+        }
+        
+        .sync-indicator {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
     </style>
 </head>
-<body>
-    <div id="root"></div>
+<body class="min-h-screen">
+    <!-- Écran de connexion GitHub -->
+    <div id="login-screen" class="login-screen active items-center justify-center p-4">
+        <div class="max-w-md w-full">
+            <div class="bg-white bg-opacity-95 backdrop-blur rounded-3xl shadow-2xl p-10">
+                <div class="text-center mb-8">
+                    <div class="inline-block p-4 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full shadow-lg mb-4">
+                        <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">IAN - Écosystème Interactif</h1>
+                    <p class="text-gray-600">Connectez-vous avec GitHub pour synchroniser vos données</p>
+                </div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+                <form id="login-form" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Token GitHub Personnel
+                        </label>
+                        <div class="relative">
+                            <input
+                                type="password"
+                                id="github-token"
+                                required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-teal-200 focus:border-teal-500 transition"
+                                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                            >
+                            <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                                <span id="toggle-icon">👁️</span>
+                            </button>
+                        </div>
+                    </div>
 
-        // Service GitHub pour gérer les Gists
+                    <button
+                        type="submit"
+                        class="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white py-3 rounded-xl font-semibold hover:from-teal-600 hover:to-teal-700 transform hover:scale-105 transition shadow-lg"
+                    >
+                        <span class="flex items-center justify-center space-x-2">
+                            <span>Se connecter avec GitHub</span>
+                            <span>→</span>
+                        </span>
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <button
+                        onclick="toggleInstructions()"
+                        class="text-teal-600 hover:text-teal-700 text-sm font-medium"
+                    >
+                        ℹ️ Comment obtenir un token GitHub?
+                    </button>
+                </div>
+
+                <div id="instructions" class="hidden mt-4 p-4 bg-teal-50 rounded-xl text-sm space-y-2">
+                    <p class="font-semibold text-teal-800">Instructions :</p>
+                    <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                        <li>Allez sur <a href="https://github.com/settings/tokens/new" target="_blank" class="text-teal-600 hover:underline">GitHub Settings → Tokens</a></li>
+                        <li>Donnez un nom au token (ex: "IAN Ecosystem")</li>
+                        <li>Sélectionnez le scope <code class="bg-gray-200 px-1 rounded">gist</code></li>
+                        <li>Cliquez sur "Generate token"</li>
+                        <li>Copiez le token et collez-le ci-dessus</li>
+                    </ol>
+                    <p class="text-yellow-700 bg-yellow-100 p-2 rounded">
+                        ⚠️ Gardez votre token secret et ne le partagez jamais!
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-4 text-center">
+                <p class="text-teal-100 text-sm">
+                    Vos données seront stockées de manière sécurisée dans vos Gists GitHub privés
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application principale -->
+    <div id="main-app" style="display: none;">
+        <!-- Barre de synchronisation GitHub -->
+        <div id="sync-bar" class="fixed top-0 left-0 right-0 bg-white bg-opacity-95 backdrop-blur shadow-sm z-50">
+            <div class="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <img id="user-avatar" src="" alt="" class="w-8 h-8 rounded-full" style="display: none;">
+                    <span id="user-name" class="text-sm font-medium text-gray-700"></span>
+                    <span id="sync-status" class="text-xs text-gray-500 flex items-center">
+                        <span class="sync-indicator">●</span>
+                        <span class="ml-1">Synchronisé</span>
+                    </span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="manualSync()" class="px-3 py-1 bg-teal-100 text-teal-700 rounded-lg text-sm hover:bg-teal-200 transition">
+                        🔄 Synchroniser
+                    </button>
+                    <button onclick="logout()" class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition">
+                        🚪 Déconnexion
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenu original de l'application (avec padding-top pour la barre) -->
+        <div style="padding-top: 48px;">
+            <!-- Page d'accueil -->
+            <div id="home-page" class="page-container active">
+                <div class="max-w-6xl mx-auto p-6">
+                    <header class="text-center mb-12">
+                        <h1 class="text-4xl font-bold text-white mb-3">IAN - Écosystème Interactif</h1>
+                        <p class="text-teal-100 text-lg">Interlocuteur Académique pour le Numérique - Académie Orléans-Tours</p>
+                    </header>
+
+                    <!-- Grille de navigation -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <!-- Arborescence de l'écosystème -->
+                        <div class="nav-card bg-white rounded-xl shadow-lg p-6 text-center" onclick="navigateTo('ecosystem')">
+                            <div class="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center text-white text-2xl mx-auto mb-4">
+                                🌐
+                            </div>
+                            <h3 class="text-xl font-semibold text-gray-900 mb-2">Arborescence de l'écosystème</h3>
+                            <div class="text-xs text-gray-500 mb-3 font-medium">👤 Espace individuel</div>
+                            <p class="text-gray-600 mb-4">Découvrez les acteurs et leurs interactions dans l'écosystème IAN</p>
+                            <div class="inline-flex items-center text-teal-600 font-medium">
+                                <span>Explorer</span>
+                                <span class="ml-2">→</span>
+                            </div>
+                        </div>
+
+                        <!-- Annuaire des IAN -->
+                        <div class="nav-card bg-white rounded-xl shadow-lg p-6 text-center" onclick="navigateTo('directory')">
+                            <div class="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white text-2xl mx-auto mb-4">
+                                👥
+                            </div>
+                            <h3 class="text-xl font-semibold text-gray-900 mb-2">Annuaire des IAN</h3>
+                            <div class="text-xs text-gray-500 mb-3 font-medium">🤝 Espace collaboratif</div>
+                            <p class="text-gray-600 mb-4">Répertoire collaboratif des IAN de l'académie Orléans-Tours</p>
+                            <div class="inline-flex items-center text-emerald-600 font-medium">
+                                <span>Explorer</span>
+                                <span class="ml-2">→</span>
+                            </div>
+                        </div>
+
+                        <!-- Newsletter d'informations -->
+                        <div class="nav-card bg-white rounded-xl shadow-lg p-6 text-center" onclick="navigateTo('newsletter')">
+                            <div class="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white text-2xl mx-auto mb-4">
+                                📰
+                            </div>
+                            <h3 class="text-xl font-semibold text-gray-900 mb-2">Newsletter d'informations</h3>
+                            <div class="text-xs text-gray-500 mb-3 font-medium">🤝 Espace collaboratif</div>
+                            <p class="text-gray-600 mb-4">Créez et partagez vos newsletters trimestrielles collaboratives</p>
+                            <div class="inline-flex items-center text-orange-600 font-medium">
+                                <span>Explorer</span>
+                                <span class="ml-2">→</span>
+                            </div>
+                        </div>
+
+                        <!-- Usages du numérique -->
+                        <div class="nav-card bg-white rounded-xl shadow-lg p-6 text-center" onclick="navigateTo('usages')">
+                            <div class="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl mx-auto mb-4">
+                                💻
+                            </div>
+                            <h3 class="text-xl font-semibold text-gray-900 mb-2">Usages du numérique</h3>
+                            <div class="text-xs text-gray-500 mb-3 font-medium">🤝 Espace collaboratif</div>
+                            <p class="text-gray-600 mb-4">Pratiques pédagogiques numériques par discipline</p>
+                            <div class="inline-flex items-center text-purple-600 font-medium">
+                                <span>Explorer</span>
+                                <span class="ml-2">→</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section informative -->
+                    <div class="bg-white bg-opacity-10 rounded-xl p-8 text-white text-center">
+                        <h3 class="text-2xl font-semibold mb-4">Bienvenue dans l'écosystème IAN</h3>
+                        <p class="text-teal-100 text-lg leading-relaxed max-w-3xl mx-auto">
+                            Explorez les différentes facettes du rôle d'Interlocuteur Académique pour le Numérique. 
+                            Découvrez les acteurs clés, les outils essentiels et les usages pédagogiques qui structurent 
+                            votre mission d'accompagnement au numérique éducatif de la DRANE Orléans-Tours.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Les autres pages seront ajoutées ici -->
+            <div id="ecosystem-page" class="page-container">
+                <div class="max-w-6xl mx-auto p-6">
+                    <div class="breadcrumb">
+                        <button onclick="navigateTo('home')" class="text-teal-200 hover:text-white transition-colors">🏠 Accueil</button>
+                        <span class="text-teal-300">></span>
+                        <span class="text-white font-medium">Arborescence de l'écosystème</span>
+                    </div>
+                    <header class="mb-8">
+                        <h1 class="text-3xl font-bold text-white mb-2">Arborescence de l'écosystème IAN</h1>
+                        <p class="text-teal-100">Cartographie des acteurs et relations professionnelles</p>
+                    </header>
+                    <!-- Le contenu sera chargé depuis GitHub -->
+                    <div id="ecosystem-content" class="bg-white rounded-xl shadow-lg p-6">
+                        <p class="text-gray-600">Chargement...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="directory-page" class="page-container">
+                <div class="max-w-6xl mx-auto p-6">
+                    <div class="breadcrumb">
+                        <button onclick="navigateTo('home')" class="text-teal-200 hover:text-white transition-colors">🏠 Accueil</button>
+                        <span class="text-teal-300">></span>
+                        <span class="text-white font-medium">Annuaire des IAN</span>
+                    </div>
+                    <header class="mb-8">
+                        <h1 class="text-3xl font-bold text-white mb-2">Annuaire des IAN</h1>
+                        <p class="text-teal-100">Répertoire collaboratif des interlocuteurs académiques</p>
+                    </header>
+                    <!-- Le contenu sera chargé depuis GitHub -->
+                    <div id="directory-content" class="bg-white rounded-xl shadow-lg p-6">
+                        <p class="text-gray-600">Chargement...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="newsletter-page" class="page-container">
+                <div class="max-w-6xl mx-auto p-6">
+                    <div class="breadcrumb">
+                        <button onclick="navigateTo('home')" class="text-teal-200 hover:text-white transition-colors">🏠 Accueil</button>
+                        <span class="text-teal-300">></span>
+                        <span class="text-white font-medium">Newsletter d'informations</span>
+                    </div>
+                    <header class="mb-8">
+                        <h1 class="text-3xl font-bold text-white mb-2">Newsletter d'informations</h1>
+                        <p class="text-teal-100">Créez et partagez vos newsletters trimestrielles</p>
+                    </header>
+                    <!-- Le contenu sera chargé depuis GitHub -->
+                    <div id="newsletter-content" class="bg-white rounded-xl shadow-lg p-6">
+                        <p class="text-gray-600">Chargement...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="usages-page" class="page-container">
+                <div class="max-w-6xl mx-auto p-6">
+                    <div class="breadcrumb">
+                        <button onclick="navigateTo('home')" class="text-teal-200 hover:text-white transition-colors">🏠 Accueil</button>
+                        <span class="text-teal-300">></span>
+                        <span class="text-white font-medium">Usages du numérique</span>
+                    </div>
+                    <header class="mb-8">
+                        <h1 class="text-3xl font-bold text-white mb-2">Usages du numérique</h1>
+                        <p class="text-teal-100">Pratiques pédagogiques numériques par discipline</p>
+                    </header>
+                    <!-- Le contenu sera chargé depuis GitHub -->
+                    <div id="usages-content" class="bg-white rounded-xl shadow-lg p-6">
+                        <p class="text-gray-600">Chargement...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Service GitHub
         class GitHubService {
             constructor() {
                 this.baseURL = 'https://api.github.com';
                 this.token = null;
                 this.username = null;
+                this.mainGistId = null;
             }
 
             setCredentials(token, username) {
@@ -104,9 +448,10 @@
             clearCredentials() {
                 this.token = null;
                 this.username = null;
+                this.mainGistId = null;
                 localStorage.removeItem('github_token');
                 localStorage.removeItem('github_username');
-                localStorage.removeItem('main_gist_id');
+                localStorage.removeItem('ian_main_gist_id');
             }
 
             async verifyToken(token) {
@@ -129,7 +474,7 @@
                 }
             }
 
-            async createGist(data, description = 'Contact Manager Data', isPublic = false) {
+            async createGist(data, description = 'IAN Ecosystem Data', isPublic = false) {
                 if (!this.token) throw new Error('No token configured');
 
                 const response = await fetch(`${this.baseURL}/gists`, {
@@ -143,7 +488,7 @@
                         description,
                         public: isPublic,
                         files: {
-                            'contacts.json': {
+                            'ian-ecosystem.json': {
                                 content: JSON.stringify(data, null, 2)
                             }
                         }
@@ -168,9 +513,9 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        description: description || 'Contact Manager Data - Updated',
+                        description: description || 'IAN Ecosystem Data - Updated',
                         files: {
-                            'contacts.json': {
+                            'ian-ecosystem.json': {
                                 content: JSON.stringify(data, null, 2)
                             }
                         }
@@ -202,7 +547,7 @@
                 }
 
                 const gist = await response.json();
-                const content = gist.files['contacts.json']?.content;
+                const content = gist.files['ian-ecosystem.json']?.content;
                 
                 if (content) {
                     return JSON.parse(content);
@@ -225,849 +570,348 @@
 
                 const gists = await response.json();
                 return gists.filter(g => 
-                    g.files['contacts.json'] && 
-                    g.description?.includes('Contact Manager')
+                    g.files['ian-ecosystem.json'] && 
+                    g.description?.includes('IAN Ecosystem')
                 );
             }
         }
 
         const githubService = new GitHubService();
 
-        // Composant principal
-        function App() {
-            const [isAuthenticated, setIsAuthenticated] = useState(false);
-            const [user, setUser] = useState(null);
-            const [contacts, setContacts] = useState([]);
-            const [mainGistId, setMainGistId] = useState(null);
-            const [loading, setLoading] = useState(true);
-            const [syncing, setSyncing] = useState(false);
-            const [notification, setNotification] = useState(null);
-            const [searchTerm, setSearchTerm] = useState('');
-            const [selectedCategory, setSelectedCategory] = useState('all');
+        // Structure de données globale
+        let appData = {
+            ianProfile: {
+                avatar: '👤',
+                name: '',
+                academy: 'Orléans-Tours',
+                discipline: '',
+                email: '',
+                objectives: ''
+            },
+            directoryProfiles: [],
+            newsletters: [],
+            actualites: [],
+            usages: [],
+            lastUpdated: null
+        };
 
-            useEffect(() => {
-                checkExistingAuth();
-            }, []);
+        // Gestion de l'authentification
+        function toggleTokenVisibility() {
+            const input = document.getElementById('github-token');
+            const icon = document.getElementById('toggle-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                icon.textContent = '👁️';
+            }
+        }
 
-            const checkExistingAuth = async () => {
-                const { token, username } = githubService.getStoredCredentials();
-                if (token && username) {
-                    const result = await githubService.verifyToken(token);
-                    if (result.valid) {
-                        githubService.setCredentials(token, username);
-                        setIsAuthenticated(true);
-                        setUser(result.user);
-                        await loadMainGist();
-                    } else {
-                        githubService.clearCredentials();
-                    }
-                }
-                setLoading(false);
-            };
+        function toggleInstructions() {
+            const instructions = document.getElementById('instructions');
+            instructions.classList.toggle('hidden');
+        }
 
-            const loadMainGist = async () => {
-                setLoading(true);
-                try {
-                    const storedGistId = localStorage.getItem('main_gist_id');
-                    if (storedGistId) {
-                        const data = await githubService.getGist(storedGistId);
-                        if (data) {
-                            setContacts(data.contacts || []);
-                            setMainGistId(storedGistId);
-                        }
-                    } else {
-                        const gists = await githubService.listGists();
-                        const mainGist = gists.find(g => g.description?.includes('[MAIN]'));
-                        
-                        if (mainGist) {
-                            const data = await githubService.getGist(mainGist.id);
-                            setContacts(data.contacts || []);
-                            setMainGistId(mainGist.id);
-                            localStorage.setItem('main_gist_id', mainGist.id);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error loading gist:', error);
-                    showNotification('Erreur lors du chargement des données', 'error');
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            const syncToGitHub = async () => {
-                if (!isAuthenticated) return;
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = document.getElementById('github-token').value;
+            
+            // Vérifier le token
+            const result = await githubService.verifyToken(token);
+            
+            if (result.valid) {
+                githubService.setCredentials(token, result.username);
                 
-                setSyncing(true);
-                try {
-                    const data = {
-                        contacts,
-                        lastUpdated: new Date().toISOString(),
-                        owner: user.login
-                    };
+                // Mettre à jour l'interface utilisateur
+                document.getElementById('user-name').textContent = result.username;
+                if (result.user.avatar_url) {
+                    const avatar = document.getElementById('user-avatar');
+                    avatar.src = result.user.avatar_url;
+                    avatar.style.display = 'block';
+                }
+                
+                // Charger les données depuis GitHub
+                await loadDataFromGitHub();
+                
+                // Afficher l'application principale
+                document.getElementById('login-screen').classList.remove('active');
+                document.getElementById('main-app').style.display = 'block';
+            } else {
+                alert('Token GitHub invalide. Veuillez vérifier et réessayer.');
+            }
+        });
 
-                    if (mainGistId) {
-                        await githubService.updateGist(
-                            mainGistId,
-                            data,
-                            `[MAIN] Contact Manager Data - ${user.login}`
-                        );
-                    } else {
-                        const gist = await githubService.createGist(
-                            data,
-                            `[MAIN] Contact Manager Data - ${user.login}`,
-                            false
-                        );
-                        setMainGistId(gist.id);
-                        localStorage.setItem('main_gist_id', gist.id);
+        // Chargement des données depuis GitHub
+        async function loadDataFromGitHub() {
+            updateSyncStatus('Chargement...');
+            
+            try {
+                // Vérifier s'il y a un Gist principal stocké
+                const storedGistId = localStorage.getItem('ian_main_gist_id');
+                if (storedGistId) {
+                    const data = await githubService.getGist(storedGistId);
+                    if (data) {
+                        appData = { ...appData, ...data };
+                        githubService.mainGistId = storedGistId;
+                        updateSyncStatus('Synchronisé');
+                        return;
+                    }
+                }
+                
+                // Sinon, chercher un Gist existant
+                const gists = await githubService.listGists();
+                const mainGist = gists.find(g => g.description?.includes('[MAIN]'));
+                
+                if (mainGist) {
+                    const data = await githubService.getGist(mainGist.id);
+                    appData = { ...appData, ...data };
+                    githubService.mainGistId = mainGist.id;
+                    localStorage.setItem('ian_main_gist_id', mainGist.id);
+                } else {
+                    // Créer un nouveau Gist
+                    const gist = await githubService.createGist(
+                        appData,
+                        `[MAIN] IAN Ecosystem Data - ${githubService.username}`,
+                        false
+                    );
+                    githubService.mainGistId = gist.id;
+                    localStorage.setItem('ian_main_gist_id', gist.id);
+                }
+                
+                updateSyncStatus('Synchronisé');
+            } catch (error) {
+                console.error('Error loading data:', error);
+                updateSyncStatus('Erreur de synchronisation');
+            }
+        }
+
+        // Sauvegarde des données vers GitHub
+        async function saveDataToGitHub() {
+            if (!githubService.token || !githubService.mainGistId) return;
+            
+            updateSyncStatus('Synchronisation...');
+            
+            try {
+                appData.lastUpdated = new Date().toISOString();
+                
+                await githubService.updateGist(
+                    githubService.mainGistId,
+                    appData,
+                    `[MAIN] IAN Ecosystem Data - ${githubService.username}`
+                );
+                
+                updateSyncStatus('Synchronisé');
+            } catch (error) {
+                console.error('Error saving data:', error);
+                updateSyncStatus('Erreur de synchronisation');
+            }
+        }
+
+        // Synchronisation manuelle
+        async function manualSync() {
+            await saveDataToGitHub();
+        }
+
+        // Mise à jour du statut de synchronisation
+        function updateSyncStatus(status) {
+            const statusElement = document.getElementById('sync-status');
+            statusElement.innerHTML = `<span class="sync-indicator">●</span><span class="ml-1">${status}</span>`;
+        }
+
+        // Déconnexion
+        function logout() {
+            if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+                githubService.clearCredentials();
+                location.reload();
+            }
+        }
+
+        // Navigation entre les pages
+        function navigateTo(page) {
+            // Masquer toutes les pages
+            document.querySelectorAll('.page-container').forEach(p => p.classList.remove('active'));
+            
+            // Afficher la page demandée
+            document.getElementById(`${page}-page`).classList.add('active');
+            
+            // Charger le contenu spécifique à la page
+            loadPageContent(page);
+        }
+
+        // Chargement du contenu des pages
+        function loadPageContent(page) {
+            switch(page) {
+                case 'ecosystem':
+                    loadEcosystemContent();
+                    break;
+                case 'directory':
+                    loadDirectoryContent();
+                    break;
+                case 'newsletter':
+                    loadNewsletterContent();
+                    break;
+                case 'usages':
+                    loadUsagesContent();
+                    break;
+            }
+        }
+
+        function loadEcosystemContent() {
+            const content = document.getElementById('ecosystem-content');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg p-6">
+                        <h2 class="text-2xl font-bold text-teal-800 mb-4">Mon Profil IAN</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                                <input type="text" id="profile-name" value="${appData.ianProfile.name || ''}" 
+                                    onchange="updateProfile('name', this.value)"
+                                    class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Discipline</label>
+                                <input type="text" id="profile-discipline" value="${appData.ianProfile.discipline || ''}"
+                                    onchange="updateProfile('discipline', this.value)"
+                                    class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" id="profile-email" value="${appData.ianProfile.email || ''}"
+                                    onchange="updateProfile('email', this.value)"
+                                    class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Académie</label>
+                                <input type="text" id="profile-academy" value="${appData.ianProfile.academy || ''}"
+                                    onchange="updateProfile('academy', this.value)"
+                                    class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Objectifs</label>
+                            <textarea id="profile-objectives" 
+                                onchange="updateProfile('objectives', this.value)"
+                                rows="3" class="w-full px-3 py-2 border rounded-lg">${appData.ianProfile.objectives || ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function loadDirectoryContent() {
+            const content = document.getElementById('directory-content');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-800">Annuaire des IAN</h2>
+                        <button onclick="addContact()" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">
+                            ➕ Ajouter un contact
+                        </button>
+                    </div>
+                    <div id="contacts-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${renderContacts()}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderContacts() {
+            if (appData.directoryProfiles.length === 0) {
+                return '<p class="col-span-full text-center text-gray-500">Aucun contact dans l'annuaire</p>';
+            }
+            
+            return appData.directoryProfiles.map((contact, index) => `
+                <div class="contact-card bg-white rounded-lg shadow p-4 border-2">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-semibold text-lg">${contact.name}</h3>
+                        <button onclick="deleteContact(${index})" class="text-red-500 hover:text-red-700">✕</button>
+                    </div>
+                    <p class="text-sm text-gray-600">${contact.discipline || 'Non renseigné'}</p>
+                    <p class="text-sm text-gray-600">${contact.etablissement || 'Non renseigné'}</p>
+                    <p class="text-sm text-blue-600">${contact.email || 'Non renseigné'}</p>
+                </div>
+            `).join('');
+        }
+
+        function loadNewsletterContent() {
+            const content = document.getElementById('newsletter-content');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Newsletters</h2>
+                    <p class="text-gray-600">Gérez vos newsletters trimestrielles ici.</p>
+                </div>
+            `;
+        }
+
+        function loadUsagesContent() {
+            const content = document.getElementById('usages-content');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Usages du numérique</h2>
+                    <p class="text-gray-600">Explorez les pratiques pédagogiques numériques.</p>
+                </div>
+            `;
+        }
+
+        // Fonctions de mise à jour
+        function updateProfile(field, value) {
+            appData.ianProfile[field] = value;
+            saveDataToGitHub();
+        }
+
+        function addContact() {
+            const name = prompt('Nom du contact:');
+            if (name) {
+                const contact = {
+                    name,
+                    discipline: prompt('Discipline:') || '',
+                    etablissement: prompt('Établissement:') || '',
+                    email: prompt('Email:') || '',
+                    dateCreation: new Date().toISOString()
+                };
+                appData.directoryProfiles.push(contact);
+                saveDataToGitHub();
+                loadDirectoryContent();
+            }
+        }
+
+        function deleteContact(index) {
+            if (confirm('Supprimer ce contact ?')) {
+                appData.directoryProfiles.splice(index, 1);
+                saveDataToGitHub();
+                loadDirectoryContent();
+            }
+        }
+
+        // Vérification de l'authentification au chargement
+        window.addEventListener('DOMContentLoaded', async () => {
+            const { token, username } = githubService.getStoredCredentials();
+            if (token && username) {
+                const result = await githubService.verifyToken(token);
+                if (result.valid) {
+                    githubService.setCredentials(token, username);
+                    
+                    // Mettre à jour l'interface utilisateur
+                    document.getElementById('user-name').textContent = username;
+                    if (result.user.avatar_url) {
+                        const avatar = document.getElementById('user-avatar');
+                        avatar.src = result.user.avatar_url;
+                        avatar.style.display = 'block';
                     }
                     
-                    showNotification('Synchronisé avec GitHub!');
-                } catch (error) {
-                    console.error('Sync error:', error);
-                    showNotification('Erreur de synchronisation', 'error');
-                } finally {
-                    setSyncing(false);
-                }
-            };
-
-            const showNotification = (message, type = 'success') => {
-                setNotification({ message, type });
-                setTimeout(() => setNotification(null), 3000);
-            };
-
-            const handleLogin = async (token) => {
-                setLoading(true);
-                const result = await githubService.verifyToken(token);
-                
-                if (result.valid) {
-                    githubService.setCredentials(token, result.username);
-                    setIsAuthenticated(true);
-                    setUser(result.user);
-                    showNotification('Connexion réussie!');
-                    await loadMainGist();
+                    // Charger les données
+                    await loadDataFromGitHub();
+                    
+                    // Afficher l'application
+                    document.getElementById('login-screen').classList.remove('active');
+                    document.getElementById('main-app').style.display = 'block';
                 } else {
-                    showNotification('Token invalide', 'error');
+                    githubService.clearCredentials();
                 }
-                setLoading(false);
-            };
-
-            const handleLogout = () => {
-                githubService.clearCredentials();
-                setIsAuthenticated(false);
-                setUser(null);
-                setContacts([]);
-                setMainGistId(null);
-                showNotification('Déconnexion réussie');
-            };
-
-            const handleAddContact = (contactData) => {
-                const newContact = {
-                    ...contactData,
-                    id: Date.now(),
-                    createdAt: new Date().toISOString()
-                };
-                const newContacts = [...contacts, newContact];
-                setContacts(newContacts);
-                syncToGitHub();
-                showNotification('Contact ajouté avec succès');
-            };
-
-            const handleUpdateContact = (contactId, updates) => {
-                const newContacts = contacts.map(c => 
-                    c.id === contactId 
-                        ? { ...c, ...updates, updatedAt: new Date().toISOString() }
-                        : c
-                );
-                setContacts(newContacts);
-                syncToGitHub();
-                showNotification('Contact mis à jour');
-            };
-
-            const handleDeleteContact = (contactId) => {
-                if (confirm('Êtes-vous sûr de vouloir supprimer ce contact?')) {
-                    const newContacts = contacts.filter(c => c.id !== contactId);
-                    setContacts(newContacts);
-                    syncToGitHub();
-                    showNotification('Contact supprimé');
-                }
-            };
-
-            const filteredContacts = contacts.filter(contact => {
-                const matchesSearch = searchTerm === '' || 
-                    contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    contact.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    contact.phone?.includes(searchTerm);
-                
-                const matchesCategory = selectedCategory === 'all' || contact.category === selectedCategory;
-                
-                return matchesSearch && matchesCategory;
-            });
-
-            const categories = ['all', 'famille', 'amis', 'travail', 'client', 'fournisseur', 'autre'];
-
-            if (loading) {
-                return (
-                    <div className="min-h-screen gradient-bg flex items-center justify-center">
-                        <div className="text-white text-center">
-                            <div className="floating">
-                                <i className="fas fa-address-book text-6xl mb-4"></i>
-                            </div>
-                            <p className="text-xl">Chargement...</p>
-                        </div>
-                    </div>
-                );
             }
-
-            return (
-                <div className="min-h-screen bg-gray-50">
-                    {notification && (
-                        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-full shadow-lg slide-in ${
-                            notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'
-                        } text-white`}>
-                            <i className={`fas ${notification.type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'} mr-2`}></i>
-                            {notification.message}
-                        </div>
-                    )}
-
-                    {!isAuthenticated ? (
-                        <LoginScreen onLogin={handleLogin} />
-                    ) : (
-                        <Dashboard
-                            user={user}
-                            contacts={filteredContacts}
-                            allContacts={contacts}
-                            searchTerm={searchTerm}
-                            setSearchTerm={setSearchTerm}
-                            selectedCategory={selectedCategory}
-                            setSelectedCategory={setSelectedCategory}
-                            categories={categories}
-                            syncing={syncing}
-                            onAddContact={handleAddContact}
-                            onUpdateContact={handleUpdateContact}
-                            onDeleteContact={handleDeleteContact}
-                            onSync={syncToGitHub}
-                            onLogout={handleLogout}
-                        />
-                    )}
-                </div>
-            );
-        }
-
-        // Écran de connexion moderne
-        function LoginScreen({ onLogin }) {
-            const [token, setToken] = useState('');
-            const [showInstructions, setShowInstructions] = useState(false);
-
-            const handleSubmit = (e) => {
-                e.preventDefault();
-                if (token.trim()) {
-                    onLogin(token.trim());
-                }
-            };
-
-            return (
-                <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
-                    <div className="w-full max-w-md">
-                        <div className="glass-effect rounded-3xl shadow-2xl p-10">
-                            <div className="text-center mb-8">
-                                <div className="inline-block p-4 bg-white rounded-full shadow-lg mb-4">
-                                    <i className="fas fa-address-book text-5xl text-purple-600"></i>
-                                </div>
-                                <h1 className="text-3xl font-bold text-gray-800 mb-2">Gestionnaire de Contacts</h1>
-                                <p className="text-gray-600">Connectez-vous avec GitHub</p>
-                            </div>
-
-                            <form onSubmit={handleSubmit} className="space-y-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Token GitHub
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <i className="fab fa-github text-gray-400"></i>
-                                        </div>
-                                        <input
-                                            type="password"
-                                            required
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-500 transition"
-                                            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                            value={token}
-                                            onChange={(e) => setToken(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition shadow-lg"
-                                >
-                                    <i className="fas fa-sign-in-alt mr-2"></i>
-                                    Se connecter
-                                </button>
-                            </form>
-
-                            <div className="mt-6 text-center">
-                                <button
-                                    onClick={() => setShowInstructions(!showInstructions)}
-                                    className="text-purple-600 hover:text-purple-700 text-sm font-medium"
-                                >
-                                    <i className="fas fa-question-circle mr-1"></i>
-                                    Comment obtenir un token?
-                                </button>
-                            </div>
-
-                            {showInstructions && (
-                                <div className="mt-4 p-4 bg-purple-50 rounded-xl text-sm space-y-2 slide-in">
-                                    <p className="font-semibold text-purple-800">Instructions :</p>
-                                    <ol className="list-decimal list-inside space-y-1 text-gray-700">
-                                        <li>Allez sur <a href="https://github.com/settings/tokens" target="_blank" className="text-purple-600 hover:underline">GitHub Settings</a></li>
-                                        <li>Cliquez sur "Generate new token"</li>
-                                        <li>Sélectionnez le scope <code className="bg-gray-200 px-1 rounded">gist</code></li>
-                                        <li>Générez et copiez le token</li>
-                                    </ol>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        // Dashboard principal moderne
-        function Dashboard({
-            user,
-            contacts,
-            allContacts,
-            searchTerm,
-            setSearchTerm,
-            selectedCategory,
-            setSelectedCategory,
-            categories,
-            syncing,
-            onAddContact,
-            onUpdateContact,
-            onDeleteContact,
-            onSync,
-            onLogout
-        }) {
-            const [showAddModal, setShowAddModal] = useState(false);
-            const [editingContact, setEditingContact] = useState(null);
-            const [viewMode, setViewMode] = useState('grid');
-
-            const stats = {
-                total: allContacts.length,
-                famille: allContacts.filter(c => c.category === 'famille').length,
-                travail: allContacts.filter(c => c.category === 'travail').length,
-                recent: allContacts.filter(c => {
-                    const date = new Date(c.createdAt);
-                    const now = new Date();
-                    const diffDays = (now - date) / (1000 * 60 * 60 * 24);
-                    return diffDays <= 7;
-                }).length
-            };
-
-            return (
-                <div className="min-h-screen bg-gray-50">
-                    {/* Header moderne */}
-                    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="flex justify-between items-center h-16">
-                                <div className="flex items-center space-x-4">
-                                    <div className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg">
-                                        <i className="fas fa-address-book text-white text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <h1 className="text-xl font-semibold text-gray-900">Gestionnaire de Contacts</h1>
-                                        <p className="text-xs text-gray-500">Professionnel & Sécurisé</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center space-x-4">
-                                    {syncing && (
-                                        <div className="text-purple-600 text-sm">
-                                            <i className="fas fa-sync fa-spin mr-1"></i>
-                                            Synchronisation...
-                                        </div>
-                                    )}
-                                    
-                                    <button
-                                        onClick={onSync}
-                                        className="p-2 text-gray-600 hover:text-purple-600 transition"
-                                        disabled={syncing}
-                                    >
-                                        <i className="fas fa-cloud-upload-alt text-xl"></i>
-                                    </button>
-
-                                    <div className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-full">
-                                        <img 
-                                            src={user.avatar_url} 
-                                            alt={user.login}
-                                            className="w-8 h-8 rounded-full"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">{user.login}</span>
-                                    </div>
-
-                                    <button
-                                        onClick={onLogout}
-                                        className="p-2 text-gray-600 hover:text-red-600 transition"
-                                    >
-                                        <i className="fas fa-sign-out-alt text-xl"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </header>
-
-                    {/* Statistiques cards */}
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Total Contacts</p>
-                                        <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-                                    </div>
-                                    <div className="p-3 bg-purple-100 rounded-full">
-                                        <i className="fas fa-users text-purple-600 text-xl"></i>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Famille</p>
-                                        <p className="text-3xl font-bold text-gray-900">{stats.famille}</p>
-                                    </div>
-                                    <div className="p-3 bg-pink-100 rounded-full">
-                                        <i className="fas fa-home text-pink-600 text-xl"></i>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Travail</p>
-                                        <p className="text-3xl font-bold text-gray-900">{stats.travail}</p>
-                                    </div>
-                                    <div className="p-3 bg-blue-100 rounded-full">
-                                        <i className="fas fa-briefcase text-blue-600 text-xl"></i>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Récents (7j)</p>
-                                        <p className="text-3xl font-bold text-gray-900">{stats.recent}</p>
-                                    </div>
-                                    <div className="p-3 bg-green-100 rounded-full">
-                                        <i className="fas fa-clock text-green-600 text-xl"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Barre d'outils */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
-                            <div className="flex flex-wrap gap-4 items-center justify-between">
-                                <div className="flex flex-wrap gap-3 items-center flex-1">
-                                    {/* Recherche */}
-                                    <div className="relative flex-1 max-w-md">
-                                        <input
-                                            type="text"
-                                            placeholder="Rechercher un contact..."
-                                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                        <i className="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                                    </div>
-
-                                    {/* Catégories */}
-                                    <div className="flex gap-2">
-                                        {categories.map(cat => (
-                                            <button
-                                                key={cat}
-                                                onClick={() => setSelectedCategory(cat)}
-                                                className={`px-4 py-2 rounded-xl font-medium transition ${
-                                                    selectedCategory === cat
-                                                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                }`}
-                                            >
-                                                {cat === 'all' ? 'Tous' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Mode d'affichage */}
-                                    <div className="flex bg-gray-100 rounded-lg p-1">
-                                        <button
-                                            className={`px-3 py-1 rounded ${viewMode === 'grid' ? 'bg-white shadow' : ''}`}
-                                            onClick={() => setViewMode('grid')}
-                                        >
-                                            <i className="fas fa-th text-gray-600"></i>
-                                        </button>
-                                        <button
-                                            className={`px-3 py-1 rounded ${viewMode === 'list' ? 'bg-white shadow' : ''}`}
-                                            onClick={() => setViewMode('list')}
-                                        >
-                                            <i className="fas fa-list text-gray-600"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => setShowAddModal(true)}
-                                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-xl font-medium hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition shadow-lg"
-                                >
-                                    <i className="fas fa-plus mr-2"></i>
-                                    Nouveau Contact
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Liste des contacts */}
-                        {contacts.length === 0 ? (
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
-                                <div className="floating">
-                                    <i className="fas fa-user-friends text-gray-300 text-6xl mb-4"></i>
-                                </div>
-                                <p className="text-gray-500 text-lg mb-4">Aucun contact trouvé</p>
-                                <button
-                                    onClick={() => setShowAddModal(true)}
-                                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl font-medium hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition shadow-lg"
-                                >
-                                    <i className="fas fa-plus mr-2"></i>
-                                    Ajouter votre premier contact
-                                </button>
-                            </div>
-                        ) : (
-                            <div className={viewMode === 'grid' ? 
-                                'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 
-                                'space-y-3'
-                            }>
-                                {contacts.map(contact => (
-                                    <ContactCard
-                                        key={contact.id}
-                                        contact={contact}
-                                        viewMode={viewMode}
-                                        onEdit={() => setEditingContact(contact)}
-                                        onDelete={() => onDeleteContact(contact.id)}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Modals */}
-                    {(showAddModal || editingContact) && (
-                        <ContactModal
-                            contact={editingContact}
-                            categories={categories.filter(c => c !== 'all')}
-                            onSave={(data) => {
-                                if (editingContact) {
-                                    onUpdateContact(editingContact.id, data);
-                                } else {
-                                    onAddContact(data);
-                                }
-                                setShowAddModal(false);
-                                setEditingContact(null);
-                            }}
-                            onClose={() => {
-                                setShowAddModal(false);
-                                setEditingContact(null);
-                            }}
-                        />
-                    )}
-                </div>
-            );
-        }
-
-        // Carte de contact moderne
-        function ContactCard({ contact, viewMode, onEdit, onDelete }) {
-            const getCategoryColor = (category) => {
-                const colors = {
-                    famille: 'bg-pink-100 text-pink-700',
-                    amis: 'bg-purple-100 text-purple-700',
-                    travail: 'bg-blue-100 text-blue-700',
-                    client: 'bg-green-100 text-green-700',
-                    fournisseur: 'bg-yellow-100 text-yellow-700',
-                    autre: 'bg-gray-100 text-gray-700'
-                };
-                return colors[category] || colors.autre;
-            };
-
-            const getInitials = (name) => {
-                return name
-                    .split(' ')
-                    .map(word => word[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2);
-            };
-
-            if (viewMode === 'list') {
-                return (
-                    <div className="contact-card p-4 flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
-                                {getInitials(contact.name || '?')}
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-gray-900">{contact.name}</h3>
-                                <div className="flex items-center space-x-3 text-sm text-gray-600">
-                                    {contact.email && <span><i className="fas fa-envelope mr-1"></i>{contact.email}</span>}
-                                    {contact.phone && <span><i className="fas fa-phone mr-1"></i>{contact.phone}</span>}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                            {contact.category && (
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(contact.category)}`}>
-                                    {contact.category}
-                                </span>
-                            )}
-                            
-                            <button
-                                onClick={onEdit}
-                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
-                            >
-                                <i className="fas fa-edit"></i>
-                            </button>
-                            <button
-                                onClick={onDelete}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            >
-                                <i className="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="contact-card">
-                    <div className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                                {getInitials(contact.name || '?')}
-                            </div>
-                            {contact.category && (
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(contact.category)}`}>
-                                    {contact.category}
-                                </span>
-                            )}
-                        </div>
-
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">{contact.name}</h3>
-                        
-                        <div className="space-y-2 text-sm text-gray-600">
-                            {contact.email && (
-                                <div className="flex items-center">
-                                    <i className="fas fa-envelope w-5 text-purple-400"></i>
-                                    <span className="ml-2 truncate">{contact.email}</span>
-                                </div>
-                            )}
-                            {contact.phone && (
-                                <div className="flex items-center">
-                                    <i className="fas fa-phone w-5 text-purple-400"></i>
-                                    <span className="ml-2">{contact.phone}</span>
-                                </div>
-                            )}
-                            {contact.company && (
-                                <div className="flex items-center">
-                                    <i className="fas fa-building w-5 text-purple-400"></i>
-                                    <span className="ml-2">{contact.company}</span>
-                                </div>
-                            )}
-                            {contact.address && (
-                                <div className="flex items-center">
-                                    <i className="fas fa-map-marker-alt w-5 text-purple-400"></i>
-                                    <span className="ml-2">{contact.address}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {contact.notes && (
-                            <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                                <i className="fas fa-sticky-note mr-2 text-purple-400"></i>
-                                {contact.notes}
-                            </div>
-                        )}
-
-                        <div className="mt-4 flex space-x-2 pt-4 border-t border-gray-100">
-                            <button
-                                onClick={onEdit}
-                                className="flex-1 bg-purple-50 text-purple-600 py-2 rounded-lg hover:bg-purple-100 transition font-medium"
-                            >
-                                <i className="fas fa-edit mr-2"></i>
-                                Modifier
-                            </button>
-                            <button
-                                onClick={onDelete}
-                                className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
-                            >
-                                <i className="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        // Modal d'ajout/édition moderne
-        function ContactModal({ contact, categories, onSave, onClose }) {
-            const [formData, setFormData] = useState({
-                name: contact?.name || '',
-                email: contact?.email || '',
-                phone: contact?.phone || '',
-                company: contact?.company || '',
-                address: contact?.address || '',
-                category: contact?.category || 'autre',
-                notes: contact?.notes || ''
-            });
-
-            const handleSubmit = (e) => {
-                e.preventDefault();
-                onSave(formData);
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6 slide-in">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
-                                {contact ? 'Modifier le contact' : 'Nouveau contact'}
-                            </h2>
-                            <button
-                                onClick={onClose}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition"
-                            >
-                                <i className="fas fa-times text-gray-500"></i>
-                            </button>
-                        </div>
-                        
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Nom complet *
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Email
-                                </label>
-                                <input
-                                    type="email"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Téléphone
-                                </label>
-                                <input
-                                    type="tel"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Entreprise
-                                </label>
-                                <input
-                                    type="text"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition"
-                                    value={formData.company}
-                                    onChange={(e) => setFormData({...formData, company: e.target.value})}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Adresse
-                                </label>
-                                <input
-                                    type="text"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition"
-                                    value={formData.address}
-                                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Catégorie
-                                </label>
-                                <select
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition"
-                                    value={formData.category}
-                                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                                >
-                                    {categories.map(cat => (
-                                        <option key={cat} value={cat}>
-                                            {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Notes
-                                </label>
-                                <textarea
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition"
-                                    rows="3"
-                                    value={formData.notes}
-                                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                                ></textarea>
-                            </div>
-
-                            <div className="flex space-x-3 pt-4">
-                                <button
-                                    type="submit"
-                                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition"
-                                >
-                                    <i className="fas fa-save mr-2"></i>
-                                    {contact ? 'Mettre à jour' : 'Enregistrer'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition"
-                                >
-                                    Annuler
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            );
-        }
-
-        // Rendu de l'application
-        ReactDOM.render(<App />, document.getElementById('root'));
+        });
     </script>
 </body>
 </html>
