@@ -6,7 +6,7 @@
     <title>IAN - Écosystème Interactif</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Intro:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             box-sizing: border-box;
@@ -15,7 +15,7 @@
             min-height: 100%;
         }
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Intro', sans-serif;
+            font-family: 'Poppins', sans-serif;
         }
         
         .nav-card {
@@ -221,14 +221,19 @@
                 <div id="instructions" class="hidden mt-4 p-4 bg-teal-50 rounded-xl text-sm space-y-2">
                     <p class="font-semibold text-teal-800">Instructions :</p>
                     <ol class="list-decimal list-inside space-y-1 text-gray-700">
-                        <li>Allez sur <a href="https://github.com/settings/tokens/new" target="_blank" class="text-teal-600 hover:underline">GitHub Settings → Tokens</a></li>
+                        <li>Allez sur <a href="https://github.com/settings/tokens/new" target="_blank" class="text-teal-600 hover:underline">GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)</a></li>
+                        <li>Cliquez sur "Generate new token (classic)"</li>
                         <li>Donnez un nom au token (ex: "IAN Ecosystem")</li>
-                        <li>Sélectionnez le scope <code class="bg-gray-200 px-1 rounded">gist</code></li>
-                        <li>Cliquez sur "Generate token"</li>
-                        <li>Copiez le token et collez-le ci-dessus</li>
+                        <li><strong>Important:</strong> Sélectionnez UNIQUEMENT le scope <code class="bg-gray-200 px-1 rounded font-mono">gist</code> (cochez la case)</li>
+                        <li>Choisissez une expiration (30, 60, 90 jours ou "No expiration")</li>
+                        <li>Cliquez sur "Generate token" en bas de page</li>
+                        <li>Copiez le token complet (commence par <code class="bg-gray-200 px-1 rounded font-mono">ghp_</code>) et collez-le ci-dessus</li>
                     </ol>
                     <p class="text-yellow-700 bg-yellow-100 p-2 rounded">
-                        ⚠️ Gardez votre token secret et ne le partagez jamais!
+                        ⚠️ Gardez votre token secret et ne le partagez jamais! Le token doit avoir le scope "gist" pour fonctionner.
+                    </p>
+                    <p class="text-blue-700 bg-blue-100 p-2 rounded mt-2">
+                        💡 Le token commence toujours par "ghp_" suivi de 36 caractères alphanumériques.
                     </p>
                 </div>
             </div>
@@ -458,19 +463,35 @@
                 try {
                     const response = await fetch(`${this.baseURL}/user`, {
                         headers: {
-                            'Authorization': `Bearer ${token}`,
+                            'Authorization': `token ${token}`,
                             'Accept': 'application/vnd.github.v3+json'
                         }
                     });
-                    
+
                     if (response.ok) {
                         const user = await response.json();
                         return { valid: true, username: user.login, user };
                     }
-                    return { valid: false };
+
+                    // Log detailed error information
+                    const errorText = await response.text();
+                    console.error('GitHub API error:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        body: errorText
+                    });
+
+                    return {
+                        valid: false,
+                        error: `Erreur ${response.status}: ${response.statusText}`,
+                        details: errorText
+                    };
                 } catch (error) {
                     console.error('Token verification error:', error);
-                    return { valid: false };
+                    return {
+                        valid: false,
+                        error: 'Erreur de connexion: ' + error.message
+                    };
                 }
             }
 
@@ -480,7 +501,7 @@
                 const response = await fetch(`${this.baseURL}/gists`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${this.token}`,
+                        'Authorization': `token ${this.token}`,
                         'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json'
                     },
@@ -508,7 +529,7 @@
                 const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${this.token}`,
+                        'Authorization': `token ${this.token}`,
                         'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json'
                     },
@@ -535,7 +556,7 @@
                 };
 
                 if (this.token) {
-                    headers['Authorization'] = `Bearer ${this.token}`;
+                    headers['Authorization'] = `token ${this.token}`;
                 }
 
                 const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
@@ -561,7 +582,7 @@
 
                 const response = await fetch(`${this.baseURL}/users/${this.username}/gists`, {
                     headers: {
-                        'Authorization': `Bearer ${this.token}`,
+                        'Authorization': `token ${this.token}`,
                         'Accept': 'application/vnd.github.v3+json'
                     }
                 });
@@ -616,13 +637,18 @@
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const token = document.getElementById('github-token').value;
-            
+            const submitButton = e.target.querySelector('button[type="submit"]');
+
+            // Désactiver le bouton pendant la vérification
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Vérification...</span></span>';
+
             // Vérifier le token
             const result = await githubService.verifyToken(token);
-            
+
             if (result.valid) {
                 githubService.setCredentials(token, result.username);
-                
+
                 // Mettre à jour l'interface utilisateur
                 document.getElementById('user-name').textContent = result.username;
                 if (result.user.avatar_url) {
@@ -630,15 +656,37 @@
                     avatar.src = result.user.avatar_url;
                     avatar.style.display = 'block';
                 }
-                
+
                 // Charger les données depuis GitHub
                 await loadDataFromGitHub();
-                
+
                 // Afficher l'application principale
                 document.getElementById('login-screen').classList.remove('active');
                 document.getElementById('main-app').style.display = 'block';
             } else {
-                alert('Token GitHub invalide. Veuillez vérifier et réessayer.');
+                // Afficher un message d'erreur détaillé
+                let errorMessage = 'Token GitHub invalide. Veuillez vérifier et réessayer.';
+                if (result.error) {
+                    errorMessage = result.error;
+                }
+
+                // Vérifier les erreurs courantes
+                if (result.details) {
+                    try {
+                        const errorData = JSON.parse(result.details);
+                        if (errorData.message) {
+                            errorMessage += '\n\nDétails: ' + errorData.message;
+                        }
+                    } catch (e) {
+                        // Ignorer si ce n'est pas du JSON
+                    }
+                }
+
+                alert(errorMessage + '\n\nAssurez-vous que:\n- Le token est valide\n- Le token a le scope "gist"\n- Vous avez copié le token complet');
+
+                // Réactiver le bouton
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Se connecter avec GitHub</span><span>→</span></span>';
             }
         });
 
@@ -819,7 +867,7 @@
 
         function renderContacts() {
             if (appData.directoryProfiles.length === 0) {
-                return '<p class="col-span-full text-center text-gray-500">Aucun contact dans l'annuaire</p>';
+                return '<p class="col-span-full text-center text-gray-500">Aucun contact dans l\'annuaire</p>';
             }
             
             return appData.directoryProfiles.map((contact, index) => `
