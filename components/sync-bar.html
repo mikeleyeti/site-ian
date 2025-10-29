@@ -1,0 +1,21 @@
+<!-- Barre de synchronisation GitHub -->
+<div id="sync-bar" class="fixed top-0 left-0 right-0 bg-white bg-opacity-95 backdrop-blur shadow-sm z-50">
+    <div class="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <img id="user-avatar" src="" alt="" class="w-8 h-8 rounded-full" style="display: none;">
+            <span id="user-name" class="text-sm font-medium text-gray-700"></span>
+            <span id="sync-status" class="text-xs text-gray-500 flex items-center">
+                <span class="sync-indicator">●</span>
+                <span class="ml-1">Synchronisé</span>
+            </span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="manualSync()" class="px-3 py-1 bg-teal-100 text-teal-700 rounded-lg text-sm hover:bg-teal-200 transition">
+                🔄 Synchroniser
+            </button>
+            <button onclick="logout()" class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition">
+                🚪 Déconnexion
+            </button>
+        </div>
+    </div>
+</div>

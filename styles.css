@@ -1,0 +1,178 @@
+/* IAN - Écosystème Interactif - Styles */
+
+body {
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #006a6f 0%, #004d52 100%);
+    min-height: 100%;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Navigation Cards */
+.nav-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.nav-card:hover {
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+/* Page Container */
+.page-container {
+    display: none;
+}
+
+.page-container.active {
+    display: block;
+}
+
+/* Tool Cards */
+.tool-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.tool-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+/* Contact Cards */
+.contact-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.contact-card:hover {
+    transform: translateY(-2px) scale(1.1);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    border-color: #6b7280;
+    z-index: 10;
+}
+
+/* Star Rating */
+.star-rating {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.star {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 18px;
+    filter: grayscale(100%);
+    transform: scale(1);
+}
+
+.star:hover {
+    color: #fbbf24;
+    filter: grayscale(0%);
+    transform: scale(1.2);
+    text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+.star.active {
+    color: #f59e0b;
+    filter: grayscale(0%);
+    transform: scale(1.1);
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+.star.active:hover {
+    transform: scale(1.3);
+}
+
+/* Urgence Filter Buttons */
+.urgence-filter-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.urgence-filter-btn:hover {
+    transform: scale(1.05);
+}
+
+.urgence-filter-btn.active {
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.urgence-filter-btn.urgente {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
+.urgence-filter-btn.urgente.active {
+    background-color: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
+
+.urgence-filter-btn.importante {
+    background-color: #fed7aa;
+    color: #ea580c;
+    border-color: #fdba74;
+}
+
+.urgence-filter-btn.importante.active {
+    background-color: #ea580c;
+    color: white;
+    border-color: #ea580c;
+}
+
+.urgence-filter-btn.normale {
+    background-color: #dbeafe;
+    color: #2563eb;
+    border-color: #bfdbfe;
+}
+
+.urgence-filter-btn.normale.active {
+    background-color: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+/* Login Screen */
+.login-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #006a6f 0%, #004d52 100%);
+    z-index: 9999;
+}
+
+.login-screen.active {
+    display: flex;
+}
+
+/* Sync Indicator */
+.sync-indicator {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
