@@ -396,7 +396,7 @@ function loadEcosystemContent() {
                             <div id="ian-avatar" class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-3xl cursor-pointer hover:bg-opacity-30 transition-colors" onclick="changeAvatar()">
                                 ${appData.ianProfile.avatar || '👤'}
                             </div>
-                            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors" onclick="changeAvatar()" title="Changer l'avatar">
+                            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors" onclick="changeAvatar()" title="Changer l&apos;avatar">
                                 <span class="text-xs">✏️</span>
                             </div>
                         </div>
@@ -480,7 +480,7 @@ function loadEcosystemContent() {
                             <div class="space-y-2 text-sm">
                                 <div class="flex items-start space-x-2">
                                     <span class="text-yellow-300 mt-1">•</span>
-                                    <span>Accompagner les enseignants dans l'usage du numérique éducatif</span>
+                                    <span>Accompagner les enseignants dans l&apos;usage du numérique éducatif</span>
                                 </div>
                                 <div class="flex items-start space-x-2">
                                     <span class="text-yellow-300 mt-1">•</span>
