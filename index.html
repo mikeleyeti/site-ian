@@ -458,7 +458,7 @@
                 try {
                     const response = await fetch(`${this.baseURL}/user`, {
                         headers: {
-                            'Authorization': `token ${token}`,
+                            'Authorization': `Bearer ${token}`,
                             'Accept': 'application/vnd.github.v3+json'
                         }
                     });
@@ -480,7 +480,7 @@
                 const response = await fetch(`${this.baseURL}/gists`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `token ${this.token}`,
+                        'Authorization': `Bearer ${this.token}`,
                         'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json'
                     },
@@ -508,7 +508,7 @@
                 const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `token ${this.token}`,
+                        'Authorization': `Bearer ${this.token}`,
                         'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json'
                     },
@@ -535,7 +535,7 @@
                 };
 
                 if (this.token) {
-                    headers['Authorization'] = `token ${this.token}`;
+                    headers['Authorization'] = `Bearer ${this.token}`;
                 }
 
                 const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
@@ -561,7 +561,7 @@
 
                 const response = await fetch(`${this.baseURL}/users/${this.username}/gists`, {
                     headers: {
-                        'Authorization': `token ${this.token}`,
+                        'Authorization': `Bearer ${this.token}`,
                         'Accept': 'application/vnd.github.v3+json'
                     }
                 });
