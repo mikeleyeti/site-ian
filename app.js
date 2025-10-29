@@ -180,7 +180,8 @@ let appData = {
         academy: 'Orléans-Tours',
         discipline: '',
         email: '',
-        objectives: ''
+        objectives: '',
+        notes: ''
     },
     directoryProfiles: [],
     newsletters: [],
@@ -388,39 +389,148 @@ function loadEcosystemContent() {
     const content = document.getElementById('ecosystem-content');
     content.innerHTML = `
         <div class="space-y-6">
-            <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg p-6">
-                <h2 class="text-2xl font-bold text-teal-800 mb-4">Mon Profil IAN</h2>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                        <input type="text" id="profile-name" value="${appData.ianProfile.name || ''}"
-                            onchange="updateProfile('name', this.value)"
-                            class="w-full px-3 py-2 border rounded-lg">
+            <div class="bg-gradient-to-r from-[#009099] to-[#007580] rounded-lg shadow-lg p-6 mb-6 text-white">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <div id="ian-avatar" class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-3xl cursor-pointer hover:bg-opacity-30 transition-colors" onclick="changeAvatar()">
+                                ${appData.ianProfile.avatar || '👤'}
+                            </div>
+                            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors" onclick="changeAvatar()" title="Changer l'avatar">
+                                <span class="text-xs">✏️</span>
+                            </div>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold">Mon Profil IAN</h2>
+                            <p class="text-teal-100">Interlocuteur Académique pour le Numérique</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Discipline</label>
-                        <input type="text" id="profile-discipline" value="${appData.ianProfile.discipline || ''}"
-                            onchange="updateProfile('discipline', this.value)"
-                            class="w-full px-3 py-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" id="profile-email" value="${appData.ianProfile.email || ''}"
-                            onchange="updateProfile('email', this.value)"
-                            class="w-full px-3 py-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Académie</label>
-                        <input type="text" id="profile-academy" value="${appData.ianProfile.academy || ''}"
-                            onchange="updateProfile('academy', this.value)"
-                            class="w-full px-3 py-2 border rounded-lg">
-                    </div>
+                    <button
+                        onclick="toggleIANProfile()"
+                        id="ian-toggle-btn"
+                        class="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center space-x-2"
+                    >
+                        <span>Compléter mon profil</span>
+                        <span id="ian-toggle-icon">▼</span>
+                    </button>
                 </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Objectifs</label>
-                    <textarea id="profile-objectives"
-                        onchange="updateProfile('objectives', this.value)"
-                        rows="3" class="w-full px-3 py-2 border rounded-lg">${appData.ianProfile.objectives || ''}</textarea>
+
+                <div id="ian-profile-details" class="hidden space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Informations personnelles -->
+                        <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                            <h3 class="font-semibold mb-3 flex items-center space-x-2">
+                                <span>📋</span>
+                                <span>Mes informations</span>
+                            </h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-teal-100 mb-1">Nom complet</label>
+                                    <input
+                                        type="text"
+                                        id="ian-name"
+                                        value="${appData.ianProfile.name || ''}"
+                                        placeholder="Votre nom et prénom"
+                                        class="w-full px-3 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-md text-white placeholder-teal-200 focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                                        onchange="updateIANField('name', this.value)"
+                                    >
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-teal-100 mb-1">Académie</label>
+                                    <input
+                                        type="text"
+                                        id="ian-academy"
+                                        value="${appData.ianProfile.academy || ''}"
+                                        placeholder="Ex: Orléans-Tours"
+                                        class="w-full px-3 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-md text-white placeholder-teal-200 focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                                        onchange="updateIANField('academy', this.value)"
+                                    >
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-teal-100 mb-1">Discipline</label>
+                                    <input
+                                        type="text"
+                                        id="ian-discipline"
+                                        value="${appData.ianProfile.discipline || ''}"
+                                        placeholder="Ex: Mathématiques, Histoire-Géo..."
+                                        class="w-full px-3 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-md text-white placeholder-teal-200 focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                                        onchange="updateIANField('discipline', this.value)"
+                                    >
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-teal-100 mb-1">Contact</label>
+                                    <input
+                                        type="email"
+                                        id="ian-email"
+                                        value="${appData.ianProfile.email || ''}"
+                                        placeholder="votre.email@ac-academie.fr"
+                                        class="w-full px-3 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-md text-white placeholder-teal-200 focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                                        onchange="updateIANField('email', this.value)"
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Missions principales -->
+                        <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                            <h3 class="font-semibold mb-3 flex items-center space-x-2">
+                                <span>🎯</span>
+                                <span>Mes missions principales</span>
+                            </h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex items-start space-x-2">
+                                    <span class="text-yellow-300 mt-1">•</span>
+                                    <span>Accompagner les enseignants dans l'usage du numérique éducatif</span>
+                                </div>
+                                <div class="flex items-start space-x-2">
+                                    <span class="text-yellow-300 mt-1">•</span>
+                                    <span>Assurer la veille technologique et pédagogique</span>
+                                </div>
+                                <div class="flex items-start space-x-2">
+                                    <span class="text-yellow-300 mt-1">•</span>
+                                    <span>Organiser des formations et ateliers numériques</span>
+                                </div>
+                                <div class="flex items-start space-x-2">
+                                    <span class="text-yellow-300 mt-1">•</span>
+                                    <span>Faire le lien entre le terrain et les instances nationales</span>
+                                </div>
+                                <div class="flex items-start space-x-2">
+                                    <span class="text-yellow-300 mt-1">•</span>
+                                    <span>Expérimenter et évaluer les outils numériques</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Objectifs personnels -->
+                    <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                        <h3 class="font-semibold mb-3 flex items-center space-x-2">
+                            <span>🚀</span>
+                            <span>Mes objectifs pour cette année</span>
+                        </h3>
+                        <textarea
+                            id="ian-objectives"
+                            placeholder="Définissez vos objectifs prioritaires en tant qu'IAN : formations à organiser, projets à développer, partenariats à créer..."
+                            class="w-full px-3 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-md text-white placeholder-teal-200 focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                            rows="4"
+                            onchange="updateIANField('objectives', this.value)"
+                        >${appData.ianProfile.objectives || ''}</textarea>
+                    </div>
+
+                    <!-- Notes personnelles -->
+                    <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                        <h3 class="font-semibold mb-3 flex items-center space-x-2">
+                            <span>📝</span>
+                            <span>Notes et réflexions</span>
+                        </h3>
+                        <textarea
+                            id="ian-notes"
+                            placeholder="Vos réflexions, idées, retours d'expérience..."
+                            class="w-full px-3 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-md text-white placeholder-teal-200 focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                            rows="3"
+                            onchange="updateIANField('notes', this.value)"
+                        >${appData.ianProfile.notes || ''}</textarea>
+                    </div>
                 </div>
             </div>
         </div>
@@ -485,6 +595,45 @@ function loadUsagesContent() {
 // Fonctions de mise à jour
 function updateProfile(field, value) {
     appData.ianProfile[field] = value;
+    saveDataToGitHub();
+}
+
+function updateIANField(field, value) {
+    appData.ianProfile[field] = value;
+    saveDataToGitHub();
+}
+
+function toggleIANProfile() {
+    const details = document.getElementById('ian-profile-details');
+    const icon = document.getElementById('ian-toggle-icon');
+
+    if (details.classList.contains('hidden')) {
+        details.classList.remove('hidden');
+        icon.textContent = '▲';
+    } else {
+        details.classList.add('hidden');
+        icon.textContent = '▼';
+    }
+}
+
+function changeAvatar() {
+    const avatars = ['👤', '👨‍🏫', '👩‍🏫', '👨‍💻', '👩‍💻', '🧑‍🏫', '🧑‍💻', '👨‍🎓', '👩‍🎓', '🧑‍🎓', '📚', '💻', '🎓', '🌟', '✨', '🚀', '🎯'];
+
+    const currentAvatar = appData.ianProfile.avatar || '👤';
+    let currentIndex = avatars.indexOf(currentAvatar);
+
+    // Passer au prochain avatar
+    currentIndex = (currentIndex + 1) % avatars.length;
+    const newAvatar = avatars[currentIndex];
+
+    appData.ianProfile.avatar = newAvatar;
+
+    // Mettre à jour l'affichage
+    const avatarElement = document.getElementById('ian-avatar');
+    if (avatarElement) {
+        avatarElement.textContent = newAvatar;
+    }
+
     saveDataToGitHub();
 }
 
