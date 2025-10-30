@@ -26,10 +26,21 @@ site-ian/
 
 - **Authentification GitHub** : Connexion sécurisée avec Personal Access Token
 - **Synchronisation des données** : Stockage dans GitHub Gists privés
-- **Gestion de profil** : Profil IAN personnalisable
-- **Annuaire collaboratif** : Liste des IAN de l'académie
+- **Gestion de profil** : Profil IAN personnalisable et public
+- **Annuaire public collaboratif** : Tous les profils IAN visibles par tous les utilisateurs
 - **Newsletters** : Création et gestion de newsletters trimestrielles
 - **Usages pédagogiques** : Pratiques numériques par discipline
+
+### Système de profils partagés
+
+L'application utilise deux types de Gists :
+1. **Gist privé** : Contient les données personnelles de chaque utilisateur
+2. **Gist public partagé** : Contient l'annuaire de tous les profils IAN
+
+Chaque utilisateur :
+- Gère son propre profil dans la page "Arborescence de l'écosystème"
+- Voit tous les profils des autres IAN dans la page "Annuaire des IAN"
+- Son profil est automatiquement synchronisé vers l'annuaire public
 
 ## Architecture
 
@@ -53,11 +64,30 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 - **Stockage local** : Utilisation de `localStorage` pour les credentials
 - **Synchronisation** : Sauvegarde automatique dans GitHub Gists
 
-## Utilisation
+## Installation et Configuration
+
+### 1. Configuration du Gist Public Partagé
+
+**Important** : Avant la première utilisation, vous devez créer le Gist public partagé :
+
+1. Ouvrir `setup-shared-gist.html` dans un navigateur
+2. Générer un Personal Access Token GitHub avec le scope `gist` sur [GitHub Settings](https://github.com/settings/tokens)
+3. Entrer le token dans le formulaire
+4. Cliquer sur "Créer le Gist Public Partagé"
+5. Copier l'ID du Gist généré
+6. Dans `app.js` (ligne ~11), remplacer la valeur de `sharedGistId` par l'ID copié :
+   ```javascript
+   this.sharedGistId = 'VOTRE_ID_DE_GIST_ICI';
+   ```
+
+### 2. Utilisation de l'application
 
 1. Ouvrir `index.html` dans un navigateur web
 2. Se connecter avec un Personal Access Token GitHub (scope `gist` requis)
-3. Les données sont automatiquement synchronisées avec GitHub
+3. Compléter son profil dans la page "Arborescence de l'écosystème"
+4. Les données sont automatiquement synchronisées :
+   - Données personnelles → Gist privé
+   - Profil public → Gist partagé
 
 ## Développement
 
@@ -84,12 +114,14 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 - **GitHub API** : Stockage et synchronisation des données
 - **Fetch API** : Chargement dynamique des composants
 
-## Sécurité
+## Sécurité et Confidentialité
 
 - ⚠️ **Ne jamais partager votre Personal Access Token**
 - Les tokens sont stockés localement dans le navigateur
-- Les données sont sauvegardées dans des Gists GitHub privés
-- Aucune donnée n'est envoyée à des serveurs tiers
+- Les données personnelles sont sauvegardées dans des Gists GitHub privés
+- ⚠️ **Votre profil IAN est public** : Les informations de profil (nom, académie, discipline, email, objectifs) sont visibles par tous dans l'annuaire
+- Ne saisissez que des informations professionnelles que vous acceptez de partager
+- Aucune donnée n'est envoyée à des serveurs tiers (uniquement GitHub)
 
 ## Licence
 
