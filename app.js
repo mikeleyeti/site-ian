@@ -219,9 +219,12 @@ class GitHubService {
             // Trouver et mettre à jour le profil de l'utilisateur actuel
             const existingIndex = profiles.findIndex(p => p.username === this.username);
 
+            // Créer une copie du profil sans les notes privées
+            const { notes, ...publicProfile } = profile;
+
             const updatedProfile = {
                 username: this.username,
-                ...profile,
+                ...publicProfile,
                 lastUpdated: new Date().toISOString()
             };
 
@@ -270,11 +273,13 @@ const githubService = new GitHubService();
 let appData = {
     ianProfile: {
         avatar: '👤',
-        name: '',
-        academy: 'Orléans-Tours',
+        firstName: '',
+        lastName: '',
         discipline: '',
-        email: '',
-        objectives: ''
+        department: '',
+        academicEmail: '',
+        objectives: '',
+        notes: '' // Notes privées, non partagées dans l'annuaire
     },
     directoryProfiles: [],
     newsletters: [],
@@ -543,58 +548,100 @@ function loadEcosystemContent() {
                     </div>
                     <div class="ml-3">
                         <p class="text-sm text-blue-700">
-                            <strong>Votre profil est public :</strong> Les informations que vous saisissez ici seront visibles par tous les IAN dans l'annuaire.
+                            <strong>Votre profil est public :</strong> Les informations personnelles (sauf "Notes et réflexions") seront visibles par tous les IAN dans l'annuaire.
                         </p>
                     </div>
                 </div>
             </div>
 
-            <!-- Formulaire de profil -->
-            <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg p-6">
-                <h2 class="text-2xl font-bold text-teal-800 mb-4">Informations personnelles</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
-                        <input type="text" id="profile-name" value="${appData.ianProfile.name || ''}"
-                            onchange="updateProfile('name', this.value)"
-                            placeholder="Ex: Jean Dupont"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Discipline *</label>
-                        <input type="text" id="profile-discipline" value="${appData.ianProfile.discipline || ''}"
-                            onchange="updateProfile('discipline', this.value)"
-                            placeholder="Ex: Mathématiques, Sciences, etc."
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email professionnel</label>
-                        <input type="email" id="profile-email" value="${appData.ianProfile.email || ''}"
-                            onchange="updateProfile('email', this.value)"
-                            placeholder="prenom.nom@ac-academie.fr"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Académie *</label>
-                        <input type="text" id="profile-academy" value="${appData.ianProfile.academy || ''}"
-                            onchange="updateProfile('academy', this.value)"
-                            placeholder="Ex: Orléans-Tours"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                    </div>
+            <!-- Formulaire de profil avec expander -->
+            <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg overflow-hidden">
+                <!-- En-tête cliquable pour expand/collapse -->
+                <div class="flex justify-between items-center p-6 cursor-pointer hover:bg-teal-100 transition-colors"
+                     onclick="toggleProfileExpander()">
+                    <h2 class="text-2xl font-bold text-teal-800">Informations personnelles</h2>
+                    <span id="expander-icon" class="text-2xl text-teal-700 transform transition-transform duration-300">▼</span>
                 </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Objectifs et domaines d'intérêt</label>
-                    <textarea id="profile-objectives"
-                        onchange="updateProfile('objectives', this.value)"
-                        placeholder="Décrivez vos objectifs, vos domaines d'expertise ou vos projets en cours..."
-                        rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">${appData.ianProfile.objectives || ''}</textarea>
-                </div>
-                <div class="mt-4 text-sm text-gray-500">
-                    * Champs recommandés pour une meilleure visibilité dans l'annuaire
+
+                <!-- Contenu expandable -->
+                <div id="profile-form-content" class="px-6 pb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
+                            <input type="text" id="profile-lastName" value="${appData.ianProfile.lastName || ''}"
+                                onchange="updateProfile('lastName', this.value)"
+                                placeholder="Ex: Dupont"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Prénom *</label>
+                            <input type="text" id="profile-firstName" value="${appData.ianProfile.firstName || ''}"
+                                onchange="updateProfile('firstName', this.value)"
+                                placeholder="Ex: Jean"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Discipline *</label>
+                            <input type="text" id="profile-discipline" value="${appData.ianProfile.discipline || ''}"
+                                onchange="updateProfile('discipline', this.value)"
+                                placeholder="Ex: Mathématiques, Sciences, etc."
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Département *</label>
+                            <input type="text" id="profile-department" value="${appData.ianProfile.department || ''}"
+                                onchange="updateProfile('department', this.value)"
+                                placeholder="Ex: 45 (Loiret)"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Mail académique</label>
+                            <input type="email" id="profile-academicEmail" value="${appData.ianProfile.academicEmail || ''}"
+                                onchange="updateProfile('academicEmail', this.value)"
+                                placeholder="prenom.nom@ac-academie.fr"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mes objectifs</label>
+                        <textarea id="profile-objectives"
+                            onchange="updateProfile('objectives', this.value)"
+                            placeholder="Décrivez vos objectifs, vos domaines d'expertise ou vos projets en cours..."
+                            rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">${appData.ianProfile.objectives || ''}</textarea>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Notes et réflexions
+                            <span class="text-xs text-gray-500">(Privé - Non visible dans l'annuaire)</span>
+                        </label>
+                        <textarea id="profile-notes"
+                            onchange="updateProfile('notes', this.value)"
+                            placeholder="Vos notes personnelles, réflexions, idées... Ces informations restent privées."
+                            rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-yellow-50">${appData.ianProfile.notes || ''}</textarea>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-500">
+                        * Champs recommandés pour une meilleure visibilité dans l'annuaire
+                    </div>
                 </div>
             </div>
         </div>
     `;
+}
+
+// Fonction pour expand/collapse le formulaire de profil
+function toggleProfileExpander() {
+    const content = document.getElementById('profile-form-content');
+    const icon = document.getElementById('expander-icon');
+
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.style.transform = 'rotate(0deg)';
+        icon.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(-90deg)';
+        icon.textContent = '▶';
+    }
 }
 
 async function loadDirectoryContent() {
@@ -627,28 +674,31 @@ async function loadAllProfiles() {
         }
 
         // Afficher tous les profils
-        profilesList.innerHTML = profiles.map(profile => `
+        profilesList.innerHTML = profiles.map(profile => {
+            const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Sans nom';
+            return `
             <div class="bg-white rounded-lg shadow-lg p-6 border-2 border-teal-200 hover:border-teal-400 transition-all">
                 <div class="flex items-center mb-4">
                     <div class="w-12 h-12 bg-gradient-to-br from-teal-400 to-emerald-500 rounded-full flex items-center justify-center text-white text-2xl">
                         ${profile.avatar || '👤'}
                     </div>
                     <div class="ml-3">
-                        <h3 class="font-bold text-lg text-gray-800">${profile.name || 'Sans nom'}</h3>
+                        <h3 class="font-bold text-lg text-gray-800">${fullName}</h3>
                         <p class="text-sm text-gray-500">@${profile.username}</p>
                     </div>
                 </div>
                 <div class="space-y-2 text-sm">
-                    <p class="text-gray-700"><strong>Académie:</strong> ${profile.academy || 'Non renseigné'}</p>
                     <p class="text-gray-700"><strong>Discipline:</strong> ${profile.discipline || 'Non renseigné'}</p>
-                    ${profile.email ? `<p class="text-blue-600"><strong>Email:</strong> ${profile.email}</p>` : ''}
-                    ${profile.objectives ? `<p class="text-gray-600 mt-3"><em>${profile.objectives}</em></p>` : ''}
+                    <p class="text-gray-700"><strong>Département:</strong> ${profile.department || 'Non renseigné'}</p>
+                    ${profile.academicEmail ? `<p class="text-blue-600"><strong>Mail académique:</strong> ${profile.academicEmail}</p>` : ''}
+                    ${profile.objectives ? `<p class="text-gray-600 mt-3 pt-3 border-t border-gray-200"><strong>Objectifs:</strong><br><em class="text-xs">${profile.objectives}</em></p>` : ''}
                 </div>
                 <div class="mt-4 text-xs text-gray-400">
                     Mis à jour: ${profile.lastUpdated ? new Date(profile.lastUpdated).toLocaleDateString('fr-FR') : 'N/A'}
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     } catch (error) {
         console.error('Erreur lors du chargement des profils:', error);
         profilesList.innerHTML = '<p class="col-span-full text-center text-red-500">Erreur lors du chargement des profils</p>';
