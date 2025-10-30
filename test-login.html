@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Login - IAN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="min-h-screen bg-gradient-to-br from-teal-400 via-emerald-500 to-teal-600 flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <div class="bg-white bg-opacity-95 backdrop-blur rounded-3xl shadow-2xl p-10">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Test Login</h1>
+                <p class="text-gray-600">Testez la connexion GitHub Token</p>
+            </div>
+
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Token GitHub Personnel
+                    </label>
+                    <input
+                        type="password"
+                        id="github-token"
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-teal-200 focus:border-teal-500 transition"
+                        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                    >
+                </div>
+
+                <button
+                    type="submit"
+                    id="submit-btn"
+                    class="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white py-3 rounded-xl font-semibold hover:from-teal-600 hover:to-teal-700 transform hover:scale-105 transition shadow-lg"
+                >
+                    <span class="flex items-center justify-center space-x-2">
+                        <span>Se connecter avec GitHub</span>
+                        <span>→</span>
+                    </span>
+                </button>
+            </form>
+
+            <div id="result" class="mt-4 hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Script loaded');
+
+        // Service GitHub
+        class GitHubService {
+            constructor() {
+                this.baseURL = 'https://api.github.com';
+            }
+
+            async verifyToken(token) {
+                try {
+                    console.log('Verifying token...');
+                    const response = await fetch(`${this.baseURL}/user`, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    console.log('Response status:', response.status);
+
+                    if (response.ok) {
+                        const user = await response.json();
+                        console.log('User:', user);
+                        return { valid: true, username: user.login, user };
+                    }
+
+                    const errorText = await response.text();
+                    console.error('GitHub API error:', errorText);
+
+                    return {
+                        valid: false,
+                        error: `Erreur ${response.status}: ${response.statusText}`
+                    };
+                } catch (error) {
+                    console.error('Token verification error:', error);
+                    return {
+                        valid: false,
+                        error: 'Erreur de connexion: ' + error.message
+                    };
+                }
+            }
+        }
+
+        const githubService = new GitHubService();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded');
+            const loginForm = document.getElementById('login-form');
+            const resultDiv = document.getElementById('result');
+
+            console.log('Form found:', !!loginForm);
+
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    console.log('Form submitted');
+
+                    const token = document.getElementById('github-token').value;
+                    const submitButton = document.getElementById('submit-btn');
+
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<span>Vérification...</span>';
+
+                    const result = await githubService.verifyToken(token);
+
+                    resultDiv.classList.remove('hidden');
+
+                    if (result.valid) {
+                        resultDiv.className = 'mt-4 p-4 bg-green-100 text-green-800 rounded-xl';
+                        resultDiv.textContent = `✅ Connexion réussie! Bienvenue ${result.username}`;
+                    } else {
+                        resultDiv.className = 'mt-4 p-4 bg-red-100 text-red-800 rounded-xl';
+                        resultDiv.textContent = `❌ ${result.error}`;
+                    }
+
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Se connecter avec GitHub</span><span>→</span></span>';
+                });
+            } else {
+                console.error('Form not found!');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -208,10 +208,21 @@ function toggleInstructions() {
 }
 
 // Initialisation du formulaire de connexion
-document.addEventListener('DOMContentLoaded', () => {
+function initLoginForm() {
+    console.log('[IAN] Initializing login form...');
     const loginForm = document.getElementById('login-form');
+    console.log('[IAN] Login form found:', !!loginForm);
     if (loginForm) {
+        // Mark as initialized to prevent double initialization
+        if (loginForm.hasAttribute('data-initialized')) {
+            console.log('[IAN] Form already initialized, skipping');
+            return;
+        }
+        loginForm.setAttribute('data-initialized', 'true');
+
+        console.log('[IAN] Attaching submit event listener');
         loginForm.addEventListener('submit', async (e) => {
+            console.log('[IAN] Form submitted');
             e.preventDefault();
             const token = document.getElementById('github-token').value;
             const submitButton = e.target.querySelector('button[type="submit"]');
@@ -267,7 +278,42 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+}
+
+// Listen for login component loaded event
+window.addEventListener('loginComponentLoaded', () => {
+    console.log('[IAN] Login component loaded event received');
+    initLoginForm();
 });
+
+// Fallback: check periodically if login form exists and needs initialization
+let loginFormInitialized = false;
+const checkLoginForm = () => {
+    if (loginFormInitialized) return;
+
+    const loginForm = document.getElementById('login-form');
+    if (loginForm && !loginForm.hasAttribute('data-initialized')) {
+        console.log('[IAN] Login form found via fallback check, initializing...');
+        loginForm.setAttribute('data-initialized', 'true');
+        loginFormInitialized = true;
+        initLoginForm();
+        if (checkInterval) {
+            clearInterval(checkInterval);
+        }
+    }
+};
+
+// Check immediately and periodically
+const checkInterval = setInterval(checkLoginForm, 100);
+setTimeout(() => {
+    // Stop checking after 5 seconds
+    if (checkInterval) {
+        clearInterval(checkInterval);
+    }
+}, 5000);
+
+// Debug: log when this script loads
+console.log('[IAN] app.js loaded and ready');
 
 // Chargement des données depuis GitHub
 async function loadDataFromGitHub() {
