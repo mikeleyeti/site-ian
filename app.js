@@ -208,7 +208,7 @@ function toggleInstructions() {
 }
 
 // Initialisation du formulaire de connexion
-document.addEventListener('DOMContentLoaded', () => {
+function initLoginForm() {
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-});
+}
 
 // Chargement des données depuis GitHub
 async function loadDataFromGitHub() {

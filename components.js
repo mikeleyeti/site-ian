@@ -60,6 +60,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load login screen
     await componentLoader.loadComponent('login', 'login-container');
 
+    // Initialize login form after component is loaded
+    if (typeof initLoginForm === 'function') {
+        initLoginForm();
+    }
+
     // Load sync bar
     await componentLoader.loadComponent('sync-bar', 'sync-bar-container');
 
