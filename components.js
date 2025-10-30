@@ -55,15 +55,18 @@ class ComponentLoader {
 // Initialize component loader
 const componentLoader = new ComponentLoader();
 
+// Debug log
+console.log('[IAN] components.js loaded');
+
 // Load all main components when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('[IAN] DOM ready, loading components...');
     // Load login screen
     await componentLoader.loadComponent('login', 'login-container');
+    console.log('[IAN] Login component loaded, dispatching event');
 
-    // Initialize login form after component is loaded
-    if (typeof initLoginForm === 'function') {
-        initLoginForm();
-    }
+    // Dispatch custom event to signal login component is loaded
+    window.dispatchEvent(new CustomEvent('loginComponentLoaded'));
 
     // Load sync bar
     await componentLoader.loadComponent('sync-bar', 'sync-bar-container');
