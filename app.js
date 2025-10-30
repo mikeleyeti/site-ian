@@ -7,8 +7,7 @@ class GitHubService {
         this.token = null;
         this.username = null;
         this.mainGistId = null;
-        // Gist public partagé pour tous les profils IAN
-        this.sharedGistId = '2415c45a6a5213d64d7eb796fabe29a2'; // ID du Gist public partagé (à créer)
+        this.publicProfileGistId = null; // Gist public individuel pour le profil de l'utilisateur
     }
 
     setCredentials(token, username) {
@@ -29,9 +28,11 @@ class GitHubService {
         this.token = null;
         this.username = null;
         this.mainGistId = null;
+        this.publicProfileGistId = null;
         localStorage.removeItem('github_token');
         localStorage.removeItem('github_username');
         localStorage.removeItem('ian_main_gist_id');
+        localStorage.removeItem('ian_public_profile_gist_id');
     }
 
     async verifyToken(token) {
@@ -171,35 +172,42 @@ class GitHubService {
         );
     }
 
-    // Gestion du Gist public partagé pour les profils IAN
+    // Recherche tous les Gists publics de profils IAN
     async getSharedProfiles() {
         try {
-            const headers = {
-                'Accept': 'application/vnd.github.v3+json'
-            };
-
-            if (this.token) {
-                headers['Authorization'] = `token ${this.token}`;
-            }
-
-            const response = await fetch(`${this.baseURL}/gists/${this.sharedGistId}`, {
-                headers
+            // Rechercher tous les Gists publics avec la description "[IAN Profile]"
+            const response = await fetch(`${this.baseURL}/gists/public?per_page=100`, {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json'
+                }
             });
 
             if (!response.ok) {
-                console.warn('Gist public partagé non trouvé');
+                console.warn('Erreur lors de la recherche des profils publics');
                 return [];
             }
 
-            const gist = await response.json();
-            const content = gist.files['ian-profiles.json']?.content;
+            const gists = await response.json();
+            const ianProfileGists = gists.filter(g =>
+                g.description?.includes('[IAN Profile]') &&
+                g.files['ian-profile.json']
+            );
 
-            if (content) {
-                const data = JSON.parse(content);
-                return data.profiles || [];
+            // Récupérer le contenu de chaque profil
+            const profiles = [];
+            for (const gist of ianProfileGists) {
+                try {
+                    const content = gist.files['ian-profile.json']?.content;
+                    if (content) {
+                        const profile = JSON.parse(content);
+                        profiles.push(profile);
+                    }
+                } catch (error) {
+                    console.error('Erreur lors du parsing d\'un profil:', error);
+                }
             }
 
-            return [];
+            return profiles;
         } catch (error) {
             console.error('Erreur lors de la récupération des profils partagés:', error);
             return [];
@@ -213,50 +221,80 @@ class GitHubService {
         }
 
         try {
-            // Récupérer tous les profils existants
-            const profiles = await this.getSharedProfiles();
-
-            // Trouver et mettre à jour le profil de l'utilisateur actuel
-            const existingIndex = profiles.findIndex(p => p.username === this.username);
-
             // Créer une copie du profil sans les notes privées
             const { notes, ...publicProfile } = profile;
 
-            const updatedProfile = {
+            const profileData = {
                 username: this.username,
                 ...publicProfile,
                 lastUpdated: new Date().toISOString()
             };
 
-            if (existingIndex >= 0) {
-                profiles[existingIndex] = updatedProfile;
-            } else {
-                profiles.push(updatedProfile);
+            // Vérifier si l'utilisateur a déjà un Gist public pour son profil
+            if (!this.publicProfileGistId) {
+                // Chercher un Gist existant
+                const gists = await this.listGists();
+                const publicProfileGist = gists.find(g =>
+                    g.description?.includes('[IAN Profile]') && g.public
+                );
+
+                if (publicProfileGist) {
+                    this.publicProfileGistId = publicProfileGist.id;
+                    localStorage.setItem('ian_public_profile_gist_id', publicProfileGist.id);
+                }
             }
 
-            // Mettre à jour le Gist
-            const response = await fetch(`${this.baseURL}/gists/${this.sharedGistId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `token ${this.token}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    files: {
-                        'ian-profiles.json': {
-                            content: JSON.stringify({
-                                profiles,
-                                lastUpdated: new Date().toISOString()
-                            }, null, 2)
+            if (this.publicProfileGistId) {
+                // Mettre à jour le Gist existant
+                const response = await fetch(`${this.baseURL}/gists/${this.publicProfileGistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        description: `[IAN Profile] ${profileData.firstName} ${profileData.lastName} - ${profileData.discipline}`,
+                        files: {
+                            'ian-profile.json': {
+                                content: JSON.stringify(profileData, null, 2)
+                            }
                         }
-                    }
-                })
-            });
+                    })
+                });
 
-            if (!response.ok) {
-                console.error('Erreur lors de la mise à jour du Gist partagé');
-                return false;
+                if (!response.ok) {
+                    console.error('Erreur lors de la mise à jour du Gist public');
+                    return false;
+                }
+            } else {
+                // Créer un nouveau Gist public
+                const response = await fetch(`${this.baseURL}/gists`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        description: `[IAN Profile] ${profileData.firstName} ${profileData.lastName} - ${profileData.discipline}`,
+                        public: true,
+                        files: {
+                            'ian-profile.json': {
+                                content: JSON.stringify(profileData, null, 2)
+                            }
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error('Erreur lors de la création du Gist public');
+                    return false;
+                }
+
+                const gist = await response.json();
+                this.publicProfileGistId = gist.id;
+                localStorage.setItem('ian_public_profile_gist_id', gist.id);
             }
 
             return true;
@@ -419,6 +457,12 @@ async function loadDataFromGitHub() {
     updateSyncStatus('Chargement...');
 
     try {
+        // Charger l'ID du Gist public de profil si existant
+        const storedPublicProfileGistId = localStorage.getItem('ian_public_profile_gist_id');
+        if (storedPublicProfileGistId) {
+            githubService.publicProfileGistId = storedPublicProfileGistId;
+        }
+
         // Vérifier s'il y a un Gist principal stocké
         const storedGistId = localStorage.getItem('ian_main_gist_id');
         if (storedGistId) {
@@ -451,8 +495,8 @@ async function loadDataFromGitHub() {
             localStorage.setItem('ian_main_gist_id', gist.id);
         }
 
-        // Synchroniser le profil avec le Gist public partagé
-        if (appData.ianProfile && appData.ianProfile.name) {
+        // Synchroniser le profil avec le Gist public individuel (si des données existent)
+        if (appData.ianProfile && (appData.ianProfile.firstName || appData.ianProfile.lastName)) {
             await githubService.updateSharedProfile(appData.ianProfile);
         }
 

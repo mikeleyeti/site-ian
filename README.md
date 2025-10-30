@@ -33,14 +33,15 @@ site-ian/
 
 ### Système de profils partagés
 
-L'application utilise deux types de Gists :
-1. **Gist privé** : Contient les données personnelles de chaque utilisateur
-2. **Gist public partagé** : Contient l'annuaire de tous les profils IAN
+L'application utilise deux types de Gists par utilisateur :
+1. **Gist privé** : Contient les données personnelles de chaque utilisateur (notes, etc.)
+2. **Gist public individuel** : Contient le profil public de l'utilisateur
 
 Chaque utilisateur :
 - Gère son propre profil dans la page "Arborescence de l'écosystème"
 - Voit tous les profils des autres IAN dans la page "Annuaire des IAN"
-- Son profil est automatiquement synchronisé vers l'annuaire public
+- Son profil public est automatiquement créé et synchronisé dans son propre Gist public
+- L'annuaire recherche tous les Gists publics marqués "[IAN Profile]" pour afficher les profils
 
 ## Architecture
 
@@ -64,30 +65,24 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 - **Stockage local** : Utilisation de `localStorage` pour les credentials
 - **Synchronisation** : Sauvegarde automatique dans GitHub Gists
 
-## Installation et Configuration
+## Installation et Utilisation
 
-### 1. Configuration du Gist Public Partagé
+### Configuration simple - Aucune configuration préalable requise !
 
-**Important** : Avant la première utilisation, vous devez créer le Gist public partagé :
+1. **Créer un compte GitHub** (si vous n'en avez pas) : [github.com/signup](https://github.com/signup)
+2. **Générer un Personal Access Token** avec le scope `gist` : [GitHub Settings](https://github.com/settings/tokens)
+3. **Ouvrir `index.html`** dans un navigateur web
+4. **Se connecter** avec votre Personal Access Token GitHub
+5. **Compléter votre profil** dans la page "Arborescence de l'écosystème"
 
-1. Ouvrir `setup-shared-gist.html` dans un navigateur
-2. Générer un Personal Access Token GitHub avec le scope `gist` sur [GitHub Settings](https://github.com/settings/tokens)
-3. Entrer le token dans le formulaire
-4. Cliquer sur "Créer le Gist Public Partagé"
-5. Copier l'ID du Gist généré
-6. Dans `app.js` (ligne ~11), remplacer la valeur de `sharedGistId` par l'ID copié :
-   ```javascript
-   this.sharedGistId = 'VOTRE_ID_DE_GIST_ICI';
-   ```
+### Synchronisation automatique
 
-### 2. Utilisation de l'application
+Les données sont automatiquement synchronisées :
+- **Données personnelles** (incluant notes privées) → Gist privé personnel
+- **Profil public** (nom, prénom, discipline, département, etc.) → Gist public personnel
+- **Annuaire** → Agrège automatiquement tous les Gists publics "[IAN Profile]"
 
-1. Ouvrir `index.html` dans un navigateur web
-2. Se connecter avec un Personal Access Token GitHub (scope `gist` requis)
-3. Compléter son profil dans la page "Arborescence de l'écosystème"
-4. Les données sont automatiquement synchronisées :
-   - Données personnelles → Gist privé
-   - Profil public → Gist partagé
+Aucune configuration manuelle n'est nécessaire, tout se fait automatiquement au premier login !
 
 ## Développement
 
@@ -118,10 +113,12 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 
 - ⚠️ **Ne jamais partager votre Personal Access Token**
 - Les tokens sont stockés localement dans le navigateur
-- Les données personnelles sont sauvegardées dans des Gists GitHub privés
-- ⚠️ **Votre profil IAN est public** : Les informations de profil (nom, académie, discipline, email, objectifs) sont visibles par tous dans l'annuaire
-- Ne saisissez que des informations professionnelles que vous acceptez de partager
+- **Données privées** : Notes et réflexions restent dans votre Gist privé (non partagées)
+- **Données publiques** : Votre profil IAN (nom, prénom, discipline, département, mail académique, objectifs) est visible par tous dans l'annuaire
+- ⚠️ **Votre profil est public** : Ne saisissez que des informations professionnelles que vous acceptez de partager
+- Chaque utilisateur possède et contrôle ses propres Gists (privé et public)
 - Aucune donnée n'est envoyée à des serveurs tiers (uniquement GitHub)
+- Architecture décentralisée : pas de base de données centrale, chacun héberge ses données
 
 ## Licence
 
