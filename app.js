@@ -8,7 +8,7 @@ class GitHubService {
         this.username = null;
         this.mainGistId = null;
         // Gist public partagé pour tous les profils IAN
-        this.sharedGistId = 'a1b2c3d4e5f6g7h8i9j0'; // ID du Gist public partagé (à créer)
+        this.sharedGistId = '2415c45a6a5213d64d7eb796fabe29a2'; // ID du Gist public partagé (à créer)
     }
 
     setCredentials(token, username) {
@@ -513,7 +513,7 @@ function navigateTo(page) {
 
 // Chargement du contenu des pages
 function loadPageContent(page) {
-    switch(page) {
+    switch (page) {
         case 'ecosystem':
             loadEcosystemContent();
             break;
