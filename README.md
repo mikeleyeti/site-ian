@@ -1,6 +1,7 @@
 # IAN - Écosystème Interactif
 
-Application web pour les Interlocuteurs Académiques pour le Numérique de l'académie Orléans-Tours.
+Application web pour les Interlocuteurs Académiques pour le Numérique de l'académie Orléans-Tours.  
+Développé par la DRANE d'Orléans-Tours
 
 ## Structure du Projet
 
