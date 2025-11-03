@@ -28,10 +28,10 @@ site-ian/
 
 ## Fonctionnalités
 
-- **Authentification GitHub** : Connexion sécurisée avec Personal Access Token
+- **Authentification Firebase** : Connexion/Inscription sécurisée avec Email et Mot de passe
 - **Synchronisation des données** : Stockage dans **Cloud Firestore** (Firebase)
 - **Gestion de profil** : Profil IAN personnalisable et public
-- **Annuaire public collaboratif** : Tous les profils IAN visibles par tous les utilisateurs
+- **Annuaire public collaboratif** : Tous les profils IAN visibles par tous les utilisateurs authentifiés
 - **Newsletters** : Création et gestion de newsletters trimestrielles
 - **Usages pédagogiques** : Pratiques numériques par discipline
 
@@ -81,11 +81,11 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 
 ### Utilisation
 
-1. **Créer un compte GitHub** (si vous n'en avez pas) : [github.com/signup](https://github.com/signup)
-2. **Générer un Personal Access Token** avec le scope `gist` : [GitHub Settings](https://github.com/settings/tokens)
-3. **Ouvrir `index.html`** dans un navigateur web
-4. **Se connecter** avec votre Personal Access Token GitHub
-5. **Compléter votre profil** dans la page "Arborescence de l'écosystème"
+1. **Ouvrir `index.html`** dans un navigateur web
+2. **Créer un compte** (onglet "Inscription") avec votre email et un mot de passe
+3. **Ou se connecter** si vous avez déjà un compte (onglet "Connexion")
+4. **Compléter votre profil** dans la page "Arborescence de l'écosystème"
+5. **Consulter l'annuaire** des autres IAN dans la page "Annuaire des IAN"
 
 ### Synchronisation automatique
 
@@ -118,20 +118,20 @@ Tout se synchronise automatiquement à chaque modification !
 - **CSS3** : Styles et animations
 - **JavaScript ES6+** : Logique applicative moderne
 - **Tailwind CSS** : Framework CSS utility-first
-- **Firebase / Cloud Firestore** : Base de données NoSQL temps réel
-- **GitHub API** : Authentification utilisateur
+- **Firebase Authentication** : Authentification Email/Password
+- **Cloud Firestore** : Base de données NoSQL temps réel
 - **Fetch API** : Chargement dynamique des composants
 
 ## Sécurité et Confidentialité
 
-- ⚠️ **Ne jamais partager votre Personal Access Token GitHub**
-- Les tokens sont stockés localement dans le navigateur
-- **Données privées** : Notes et réflexions sont stockées dans Firestore dans la collection `users` (non partagées publiquement)
-- **Données publiques** : Votre profil IAN (nom, prénom, discipline, département, mail académique, objectifs) est visible par tous dans l'annuaire via la collection `public_directory`
-- ⚠️ **Votre profil est public** : Ne saisissez que des informations professionnelles que vous acceptez de partager
-- **Base de données centralisée** : Firebase (Google Cloud) héberge toutes les données
-- **Règles de sécurité Firestore** : Configurables pour protéger l'accès aux données
-- **Gratuit** : L'offre Firebase Spark (gratuite) est largement suffisante pour votre usage
+- 🔐 **Authentification sécurisée** : Firebase Authentication avec Email/Password
+- 🔒 **Données privées protégées** : Seul vous avez accès à vos données personnelles (notes, etc.)
+- 👥 **Annuaire public** : Votre profil IAN (nom, prénom, discipline, département, mail académique, objectifs) est visible par tous les utilisateurs authentifiés
+- ⚠️ **Ne saisissez que des informations professionnelles** que vous acceptez de partager dans votre profil public
+- 🛡️ **Règles de sécurité Firestore** : Basées sur `request.auth.uid` pour protéger vos données
+- ☁️ **Base de données centralisée** : Firebase (Google Cloud) héberge toutes les données
+- 💰 **Gratuit** : L'offre Firebase Spark (gratuite) est largement suffisante pour votre usage
+- 🔄 **Persistance automatique** : Vous restez connecté même après fermeture du navigateur
 
 ## Licence
 

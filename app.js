@@ -21,9 +21,35 @@ let appData = {
 };
 
 // Gestion de l'authentification
-function toggleTokenVisibility() {
-    const input = document.getElementById('github-token');
-    const icon = document.getElementById('toggle-icon');
+
+// Basculer entre les onglets Connexion / Inscription
+function switchTab(tab) {
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const loginTab = document.getElementById('tab-login');
+    const signupTab = document.getElementById('tab-signup');
+
+    if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        signupForm.classList.add('hidden');
+        loginTab.classList.add('active', 'text-teal-600', 'border-b-2', 'border-teal-600');
+        loginTab.classList.remove('text-gray-500');
+        signupTab.classList.remove('active', 'text-teal-600', 'border-b-2', 'border-teal-600');
+        signupTab.classList.add('text-gray-500');
+    } else {
+        signupForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+        signupTab.classList.add('active', 'text-teal-600', 'border-b-2', 'border-teal-600');
+        signupTab.classList.remove('text-gray-500');
+        loginTab.classList.remove('active', 'text-teal-600', 'border-b-2', 'border-teal-600');
+        loginTab.classList.add('text-gray-500');
+    }
+}
+
+// Afficher/Masquer le mot de passe
+function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
     if (input.type === 'password') {
         input.type = 'text';
         icon.textContent = '🙈';
@@ -33,85 +59,125 @@ function toggleTokenVisibility() {
     }
 }
 
-function toggleInstructions() {
-    const instructions = document.getElementById('instructions');
-    instructions.classList.toggle('hidden');
-}
-
-// Initialisation du formulaire de connexion
+// Initialisation des formulaires d'authentification
 function initLoginForm() {
-    console.log('[IAN] Initializing login form...');
+    console.log('[IAN] Initializing authentication forms...');
+
     const loginForm = document.getElementById('login-form');
-    console.log('[IAN] Login form found:', !!loginForm);
-    if (loginForm) {
-        // Mark as initialized to prevent double initialization
-        if (loginForm.hasAttribute('data-initialized')) {
-            console.log('[IAN] Form already initialized, skipping');
+    const signupForm = document.getElementById('signup-form');
+
+    if (!loginForm || !signupForm) {
+        console.warn('[IAN] Forms not found');
+        return;
+    }
+
+    // Marquer comme initialisé
+    if (loginForm.hasAttribute('data-initialized')) {
+        console.log('[IAN] Forms already initialized, skipping');
+        return;
+    }
+    loginForm.setAttribute('data-initialized', 'true');
+
+    // Gestionnaire du formulaire de connexion
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        console.log('[IAN] Login form submitted');
+
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const submitButton = document.getElementById('login-submit-btn');
+        const errorDiv = document.getElementById('login-error');
+
+        // Masquer les erreurs précédentes
+        errorDiv.classList.add('hidden');
+
+        // Désactiver le bouton
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span>Connexion en cours...</span>';
+
+        // Initialiser Firebase
+        await firestoreService.initialize();
+
+        // Connexion
+        const result = await firestoreService.signIn(email, password);
+
+        if (result.success) {
+            console.log('[IAN] Login successful');
+
+            // Mettre à jour l'interface
+            document.getElementById('user-name').textContent = result.user.displayName;
+
+            // Charger les données depuis Firestore
+            await loadDataFromFirestore();
+
+            // Afficher l'application principale
+            document.getElementById('login-screen').classList.remove('active');
+            document.getElementById('main-app').style.display = 'block';
+        } else {
+            // Afficher l'erreur
+            errorDiv.textContent = result.error;
+            errorDiv.classList.remove('hidden');
+
+            // Réactiver le bouton
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Se connecter</span><span>→</span></span>';
+        }
+    });
+
+    // Gestionnaire du formulaire d'inscription
+    signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        console.log('[IAN] Signup form submitted');
+
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        const passwordConfirm = document.getElementById('signup-password-confirm').value;
+        const submitButton = document.getElementById('signup-submit-btn');
+        const errorDiv = document.getElementById('signup-error');
+
+        // Masquer les erreurs précédentes
+        errorDiv.classList.add('hidden');
+
+        // Vérifier que les mots de passe correspondent
+        if (password !== passwordConfirm) {
+            errorDiv.textContent = 'Les mots de passe ne correspondent pas';
+            errorDiv.classList.remove('hidden');
             return;
         }
-        loginForm.setAttribute('data-initialized', 'true');
 
-        console.log('[IAN] Attaching submit event listener');
-        loginForm.addEventListener('submit', async (e) => {
-            console.log('[IAN] Form submitted');
-            e.preventDefault();
-            const token = document.getElementById('github-token').value;
-            const submitButton = e.target.querySelector('button[type="submit"]');
+        // Désactiver le bouton
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span>Création du compte...</span>';
 
-            // Désactiver le bouton pendant la vérification
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Vérification...</span></span>';
+        // Initialiser Firebase
+        await firestoreService.initialize();
 
-            // Initialiser Firebase si ce n'est pas déjà fait
-            await firestoreService.initialize();
+        // Inscription
+        const result = await firestoreService.signUp(email, password, name);
 
-            // Vérifier le token
-            const result = await firestoreService.verifyToken(token);
+        if (result.success) {
+            console.log('[IAN] Signup successful');
 
-            if (result.valid) {
-                firestoreService.setCredentials(token, result.username);
+            // Mettre à jour l'interface
+            document.getElementById('user-name').textContent = result.user.displayName;
 
-                // Mettre à jour l'interface utilisateur
-                document.getElementById('user-name').textContent = result.username;
-                if (result.user.avatar_url) {
-                    const avatar = document.getElementById('user-avatar');
-                    avatar.src = result.user.avatar_url;
-                    avatar.style.display = 'block';
-                }
+            // Créer les données initiales
+            await firestoreService.saveUserData(appData);
 
-                // Charger les données depuis Firestore
-                await loadDataFromFirestore();
+            // Afficher l'application principale
+            document.getElementById('login-screen').classList.remove('active');
+            document.getElementById('main-app').style.display = 'block';
+        } else {
+            // Afficher l'erreur
+            errorDiv.textContent = result.error;
+            errorDiv.classList.remove('hidden');
 
-                // Afficher l'application principale
-                document.getElementById('login-screen').classList.remove('active');
-                document.getElementById('main-app').style.display = 'block';
-            } else {
-                // Afficher un message d'erreur détaillé
-                let errorMessage = 'Token GitHub invalide. Veuillez vérifier et réessayer.';
-                if (result.error) {
-                    errorMessage = result.error;
-                }
-
-                // Vérifier les erreurs courantes
-                if (result.details) {
-                    try {
-                        const errorData = JSON.parse(result.details);
-                        if (errorData.message) {
-                            errorMessage += '\n\nDétails: ' + errorData.message;
-                        }
-                    } catch (e) {
-                        // Ignorer si ce n'est pas du JSON
-                    }
-                }
-
-                alert(errorMessage + '\n\nAssurez-vous que:\n- Le token est valide\n- Le token a le scope "gist"\n- Vous avez copié le token complet');
-
-                // Réactiver le bouton
-                submitButton.disabled = false;
-                submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Se connecter avec GitHub</span><span>→</span></span>';
-            }
-        });
-    }
+            // Réactiver le bouton
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Créer un compte</span><span>→</span></span>';
+        }
+    });
 }
 
 // Listen for login component loaded event
@@ -200,9 +266,9 @@ function updateSyncStatus(status) {
 }
 
 // Déconnexion
-function logout() {
+async function logout() {
     if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        firestoreService.clearCredentials();
+        await firestoreService.signOutUser();
         location.reload();
     }
 }
@@ -378,7 +444,7 @@ async function loadAllProfiles() {
 
         // Afficher tous les profils
         profilesList.innerHTML = profiles.map(profile => {
-            const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Sans nom';
+            const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.displayName || 'Sans nom';
             return `
             <div class="bg-white rounded-lg shadow-lg p-6 border-2 border-teal-200 hover:border-teal-400 transition-all">
                 <div class="flex items-center mb-4">
@@ -387,7 +453,7 @@ async function loadAllProfiles() {
                     </div>
                     <div class="ml-3">
                         <h3 class="font-bold text-lg text-gray-800">${fullName}</h3>
-                        <p class="text-sm text-gray-500">@${profile.username}</p>
+                        <p class="text-sm text-gray-500">${profile.email || ''}</p>
                     </div>
                 </div>
                 <div class="space-y-2 text-sm">
@@ -480,22 +546,23 @@ function deleteContact(index) {
 
 // Vérification de l'authentification au chargement
 window.addEventListener('DOMContentLoaded', async () => {
+    console.log('[IAN] DOM loaded, checking authentication...');
+
     // Initialiser Firebase
     await firestoreService.initialize();
 
-    const { token, username } = firestoreService.getStoredCredentials();
-    if (token && username) {
-        const result = await firestoreService.verifyToken(token);
-        if (result.valid) {
-            firestoreService.setCredentials(token, username);
+    // Firebase Auth persiste automatiquement l'authentification
+    // L'utilisateur sera automatiquement reconnecté s'il était connecté
+    // On attend un peu pour laisser le temps à onAuthStateChanged de se déclencher
+    setTimeout(async () => {
+        const currentUser = firestoreService.getCurrentUser();
+
+        if (currentUser) {
+            console.log('[IAN] User already authenticated:', currentUser.email);
 
             // Mettre à jour l'interface utilisateur
-            document.getElementById('user-name').textContent = username;
-            if (result.user.avatar_url) {
-                const avatar = document.getElementById('user-avatar');
-                avatar.src = result.user.avatar_url;
-                avatar.style.display = 'block';
-            }
+            const displayName = firestoreService.getDisplayName();
+            document.getElementById('user-name').textContent = displayName;
 
             // Charger les données depuis Firestore
             await loadDataFromFirestore();
@@ -504,7 +571,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('login-screen').classList.remove('active');
             document.getElementById('main-app').style.display = 'block';
         } else {
-            firestoreService.clearCredentials();
+            console.log('[IAN] No user authenticated');
         }
-    }
+    }, 500); // Attendre 500ms pour que Firebase Auth se synchronise
 });
