@@ -1,311 +1,5 @@
 // IAN - Écosystème Interactif - Application JavaScript
-
-// Service GitHub
-class GitHubService {
-    constructor() {
-        this.baseURL = 'https://api.github.com';
-        this.token = null;
-        this.username = null;
-        this.mainGistId = null;
-        this.publicProfileGistId = null; // Gist public individuel pour le profil de l'utilisateur
-    }
-
-    setCredentials(token, username) {
-        this.token = token;
-        this.username = username;
-        localStorage.setItem('github_token', token);
-        localStorage.setItem('github_username', username);
-    }
-
-    getStoredCredentials() {
-        return {
-            token: localStorage.getItem('github_token'),
-            username: localStorage.getItem('github_username')
-        };
-    }
-
-    clearCredentials() {
-        this.token = null;
-        this.username = null;
-        this.mainGistId = null;
-        this.publicProfileGistId = null;
-        localStorage.removeItem('github_token');
-        localStorage.removeItem('github_username');
-        localStorage.removeItem('ian_main_gist_id');
-        localStorage.removeItem('ian_public_profile_gist_id');
-    }
-
-    async verifyToken(token) {
-        try {
-            const response = await fetch(`${this.baseURL}/user`, {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (response.ok) {
-                const user = await response.json();
-                return { valid: true, username: user.login, user };
-            }
-
-            // Log detailed error information
-            const errorText = await response.text();
-            console.error('GitHub API error:', {
-                status: response.status,
-                statusText: response.statusText,
-                body: errorText
-            });
-
-            return {
-                valid: false,
-                error: `Erreur ${response.status}: ${response.statusText}`,
-                details: errorText
-            };
-        } catch (error) {
-            console.error('Token verification error:', error);
-            return {
-                valid: false,
-                error: 'Erreur de connexion: ' + error.message
-            };
-        }
-    }
-
-    async createGist(data, description = 'IAN Ecosystem Data', isPublic = false) {
-        if (!this.token) throw new Error('No token configured');
-
-        const response = await fetch(`${this.baseURL}/gists`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `token ${this.token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                description,
-                public: isPublic,
-                files: {
-                    'ian-ecosystem.json': {
-                        content: JSON.stringify(data, null, 2)
-                    }
-                }
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to create gist');
-        }
-
-        return await response.json();
-    }
-
-    async updateGist(gistId, data, description) {
-        if (!this.token) throw new Error('No token configured');
-
-        const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `token ${this.token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                description: description || 'IAN Ecosystem Data - Updated',
-                files: {
-                    'ian-ecosystem.json': {
-                        content: JSON.stringify(data, null, 2)
-                    }
-                }
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to update gist');
-        }
-
-        return await response.json();
-    }
-
-    async getGist(gistId) {
-        const headers = {
-            'Accept': 'application/vnd.github.v3+json'
-        };
-
-        if (this.token) {
-            headers['Authorization'] = `token ${this.token}`;
-        }
-
-        const response = await fetch(`${this.baseURL}/gists/${gistId}`, {
-            headers
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch gist');
-        }
-
-        const gist = await response.json();
-        const content = gist.files['ian-ecosystem.json']?.content;
-
-        if (content) {
-            return JSON.parse(content);
-        }
-
-        return null;
-    }
-
-    async listGists() {
-        if (!this.token || !this.username) return [];
-
-        const response = await fetch(`${this.baseURL}/users/${this.username}/gists`, {
-            headers: {
-                'Authorization': `token ${this.token}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-
-        if (!response.ok) return [];
-
-        const gists = await response.json();
-        return gists.filter(g =>
-            g.files['ian-ecosystem.json'] &&
-            g.description?.includes('IAN Ecosystem')
-        );
-    }
-
-    // Recherche tous les Gists publics de profils IAN
-    async getSharedProfiles() {
-        try {
-            // Rechercher tous les Gists publics avec la description "[IAN Profile]"
-            const response = await fetch(`${this.baseURL}/gists/public?per_page=100`, {
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (!response.ok) {
-                console.warn('Erreur lors de la recherche des profils publics');
-                return [];
-            }
-
-            const gists = await response.json();
-            const ianProfileGists = gists.filter(g =>
-                g.description?.includes('[IAN Profile]') &&
-                g.files['ian-profile.json']
-            );
-
-            // Récupérer le contenu de chaque profil
-            const profiles = [];
-            for (const gist of ianProfileGists) {
-                try {
-                    const content = gist.files['ian-profile.json']?.content;
-                    if (content) {
-                        const profile = JSON.parse(content);
-                        profiles.push(profile);
-                    }
-                } catch (error) {
-                    console.error('Erreur lors du parsing d\'un profil:', error);
-                }
-            }
-
-            return profiles;
-        } catch (error) {
-            console.error('Erreur lors de la récupération des profils partagés:', error);
-            return [];
-        }
-    }
-
-    async updateSharedProfile(profile) {
-        if (!this.token) {
-            console.error('Token requis pour mettre à jour le profil partagé');
-            return false;
-        }
-
-        try {
-            // Créer une copie du profil sans les notes privées
-            const { notes, ...publicProfile } = profile;
-
-            const profileData = {
-                username: this.username,
-                ...publicProfile,
-                lastUpdated: new Date().toISOString()
-            };
-
-            // Vérifier si l'utilisateur a déjà un Gist public pour son profil
-            if (!this.publicProfileGistId) {
-                // Chercher un Gist existant
-                const gists = await this.listGists();
-                const publicProfileGist = gists.find(g =>
-                    g.description?.includes('[IAN Profile]') && g.public
-                );
-
-                if (publicProfileGist) {
-                    this.publicProfileGistId = publicProfileGist.id;
-                    localStorage.setItem('ian_public_profile_gist_id', publicProfileGist.id);
-                }
-            }
-
-            if (this.publicProfileGistId) {
-                // Mettre à jour le Gist existant
-                const response = await fetch(`${this.baseURL}/gists/${this.publicProfileGistId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `token ${this.token}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        description: `[IAN Profile] ${profileData.firstName} ${profileData.lastName} - ${profileData.discipline}`,
-                        files: {
-                            'ian-profile.json': {
-                                content: JSON.stringify(profileData, null, 2)
-                            }
-                        }
-                    })
-                });
-
-                if (!response.ok) {
-                    console.error('Erreur lors de la mise à jour du Gist public');
-                    return false;
-                }
-            } else {
-                // Créer un nouveau Gist public
-                const response = await fetch(`${this.baseURL}/gists`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `token ${this.token}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        description: `[IAN Profile] ${profileData.firstName} ${profileData.lastName} - ${profileData.discipline}`,
-                        public: true,
-                        files: {
-                            'ian-profile.json': {
-                                content: JSON.stringify(profileData, null, 2)
-                            }
-                        }
-                    })
-                });
-
-                if (!response.ok) {
-                    console.error('Erreur lors de la création du Gist public');
-                    return false;
-                }
-
-                const gist = await response.json();
-                this.publicProfileGistId = gist.id;
-                localStorage.setItem('ian_public_profile_gist_id', gist.id);
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Erreur lors de la mise à jour du profil partagé:', error);
-            return false;
-        }
-    }
-}
-
-const githubService = new GitHubService();
+// Utilise FirestoreService (défini dans firebase-service.js) pour le stockage des données
 
 // Structure de données globale
 let appData = {
@@ -368,11 +62,14 @@ function initLoginForm() {
             submitButton.disabled = true;
             submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Vérification...</span></span>';
 
+            // Initialiser Firebase si ce n'est pas déjà fait
+            await firestoreService.initialize();
+
             // Vérifier le token
-            const result = await githubService.verifyToken(token);
+            const result = await firestoreService.verifyToken(token);
 
             if (result.valid) {
-                githubService.setCredentials(token, result.username);
+                firestoreService.setCredentials(token, result.username);
 
                 // Mettre à jour l'interface utilisateur
                 document.getElementById('user-name').textContent = result.username;
@@ -382,8 +79,8 @@ function initLoginForm() {
                     avatar.style.display = 'block';
                 }
 
-                // Charger les données depuis GitHub
-                await loadDataFromGitHub();
+                // Charger les données depuis Firestore
+                await loadDataFromFirestore();
 
                 // Afficher l'application principale
                 document.getElementById('login-screen').classList.remove('active');
@@ -452,52 +149,20 @@ setTimeout(() => {
 // Debug: log when this script loads
 console.log('[IAN] app.js loaded and ready');
 
-// Chargement des données depuis GitHub
-async function loadDataFromGitHub() {
+// Chargement des données depuis Firestore
+async function loadDataFromFirestore() {
     updateSyncStatus('Chargement...');
 
     try {
-        // Charger l'ID du Gist public de profil si existant
-        const storedPublicProfileGistId = localStorage.getItem('ian_public_profile_gist_id');
-        if (storedPublicProfileGistId) {
-            githubService.publicProfileGistId = storedPublicProfileGistId;
-        }
+        // Récupérer les données de l'utilisateur depuis Firestore
+        const data = await firestoreService.getUserData();
 
-        // Vérifier s'il y a un Gist principal stocké
-        const storedGistId = localStorage.getItem('ian_main_gist_id');
-        if (storedGistId) {
-            const data = await githubService.getGist(storedGistId);
-            if (data) {
-                appData = { ...appData, ...data };
-                githubService.mainGistId = storedGistId;
-                updateSyncStatus('Synchronisé');
-                return;
-            }
-        }
-
-        // Sinon, chercher un Gist existant
-        const gists = await githubService.listGists();
-        const mainGist = gists.find(g => g.description?.includes('[MAIN]'));
-
-        if (mainGist) {
-            const data = await githubService.getGist(mainGist.id);
+        if (data) {
+            // Fusionner avec les données par défaut
             appData = { ...appData, ...data };
-            githubService.mainGistId = mainGist.id;
-            localStorage.setItem('ian_main_gist_id', mainGist.id);
         } else {
-            // Créer un nouveau Gist
-            const gist = await githubService.createGist(
-                appData,
-                `[MAIN] IAN Ecosystem Data - ${githubService.username}`,
-                false
-            );
-            githubService.mainGistId = gist.id;
-            localStorage.setItem('ian_main_gist_id', gist.id);
-        }
-
-        // Synchroniser le profil avec le Gist public individuel (si des données existent)
-        if (appData.ianProfile && (appData.ianProfile.firstName || appData.ianProfile.lastName)) {
-            await githubService.updateSharedProfile(appData.ianProfile);
+            // Première connexion : créer les données initiales
+            await firestoreService.saveUserData(appData);
         }
 
         updateSyncStatus('Synchronisé');
@@ -507,21 +172,15 @@ async function loadDataFromGitHub() {
     }
 }
 
-// Sauvegarde des données vers GitHub
-async function saveDataToGitHub() {
-    if (!githubService.token || !githubService.mainGistId) return;
+// Sauvegarde des données vers Firestore
+async function saveDataToFirestore() {
+    if (!firestoreService.initialized || !firestoreService.username) return;
 
     updateSyncStatus('Synchronisation...');
 
     try {
         appData.lastUpdated = new Date().toISOString();
-
-        await githubService.updateGist(
-            githubService.mainGistId,
-            appData,
-            `[MAIN] IAN Ecosystem Data - ${githubService.username}`
-        );
-
+        await firestoreService.saveUserData(appData);
         updateSyncStatus('Synchronisé');
     } catch (error) {
         console.error('Error saving data:', error);
@@ -531,7 +190,7 @@ async function saveDataToGitHub() {
 
 // Synchronisation manuelle
 async function manualSync() {
-    await saveDataToGitHub();
+    await saveDataToFirestore();
 }
 
 // Mise à jour du statut de synchronisation
@@ -543,7 +202,7 @@ function updateSyncStatus(status) {
 // Déconnexion
 function logout() {
     if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        githubService.clearCredentials();
+        firestoreService.clearCredentials();
         location.reload();
     }
 }
@@ -710,7 +369,7 @@ async function loadAllProfiles() {
     const profilesList = document.getElementById('profiles-list');
 
     try {
-        const profiles = await githubService.getSharedProfiles();
+        const profiles = await firestoreService.getSharedProfiles();
 
         if (profiles.length === 0) {
             profilesList.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucun profil dans l\'annuaire. Soyez le premier à créer votre profil!</p>';
@@ -791,16 +450,8 @@ function loadUsagesContent() {
 async function updateProfile(field, value) {
     appData.ianProfile[field] = value;
 
-    // Sauvegarder dans le Gist privé
-    await saveDataToGitHub();
-
-    // Synchroniser avec le Gist public partagé
-    const success = await githubService.updateSharedProfile(appData.ianProfile);
-    if (success) {
-        console.log('Profil synchronisé avec l\'annuaire public');
-    } else {
-        console.warn('Erreur lors de la synchronisation avec l\'annuaire public');
-    }
+    // Sauvegarder dans Firestore (données privées + profil public)
+    await firestoreService.updateProfileField(field, value);
 }
 
 function addContact() {
@@ -814,7 +465,7 @@ function addContact() {
             dateCreation: new Date().toISOString()
         };
         appData.directoryProfiles.push(contact);
-        saveDataToGitHub();
+        saveDataToFirestore();
         loadDirectoryContent();
     }
 }
@@ -822,18 +473,21 @@ function addContact() {
 function deleteContact(index) {
     if (confirm('Supprimer ce contact ?')) {
         appData.directoryProfiles.splice(index, 1);
-        saveDataToGitHub();
+        saveDataToFirestore();
         loadDirectoryContent();
     }
 }
 
 // Vérification de l'authentification au chargement
 window.addEventListener('DOMContentLoaded', async () => {
-    const { token, username } = githubService.getStoredCredentials();
+    // Initialiser Firebase
+    await firestoreService.initialize();
+
+    const { token, username } = firestoreService.getStoredCredentials();
     if (token && username) {
-        const result = await githubService.verifyToken(token);
+        const result = await firestoreService.verifyToken(token);
         if (result.valid) {
-            githubService.setCredentials(token, username);
+            firestoreService.setCredentials(token, username);
 
             // Mettre à jour l'interface utilisateur
             document.getElementById('user-name').textContent = username;
@@ -843,14 +497,14 @@ window.addEventListener('DOMContentLoaded', async () => {
                 avatar.style.display = 'block';
             }
 
-            // Charger les données
-            await loadDataFromGitHub();
+            // Charger les données depuis Firestore
+            await loadDataFromFirestore();
 
             // Afficher l'application
             document.getElementById('login-screen').classList.remove('active');
             document.getElementById('main-app').style.display = 'block';
         } else {
-            githubService.clearCredentials();
+            firestoreService.clearCredentials();
         }
     }
 });
