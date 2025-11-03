@@ -7,10 +7,11 @@ Développé par la DRANE d'Orléans-Tours
 
 ```
 site-ian/
-├── index.html              # Point d'entrée principal (32 lignes)
-├── styles.css              # Tous les styles CSS (178 lignes)
-├── app.js                  # Logique applicative principale (541 lignes)
-├── components.js           # Chargeur de composants HTML (74 lignes)
+├── index.html              # Point d'entrée principal avec SDK Firebase
+├── styles.css              # Tous les styles CSS
+├── app.js                  # Logique applicative principale
+├── firebase-service.js     # Service Firestore (remplace GitHubService)
+├── components.js           # Chargeur de composants HTML
 ├── components/             # Composants HTML modulaires
 │   ├── login.html          # Écran de connexion GitHub
 │   ├── sync-bar.html       # Barre de synchronisation
@@ -19,6 +20,8 @@ site-ian/
 │   ├── directory.html      # Page annuaire des IAN
 │   ├── newsletter.html     # Page newsletters
 │   └── usages.html         # Page usages du numérique
+├── firestore.rules         # Règles de sécurité Firestore
+├── FIREBASE_SETUP.md       # Instructions de configuration Firebase
 └── README.md               # Ce fichier
 
 ```
@@ -26,23 +29,23 @@ site-ian/
 ## Fonctionnalités
 
 - **Authentification GitHub** : Connexion sécurisée avec Personal Access Token
-- **Synchronisation des données** : Stockage dans GitHub Gists privés
+- **Synchronisation des données** : Stockage dans **Cloud Firestore** (Firebase)
 - **Gestion de profil** : Profil IAN personnalisable et public
 - **Annuaire public collaboratif** : Tous les profils IAN visibles par tous les utilisateurs
 - **Newsletters** : Création et gestion de newsletters trimestrielles
 - **Usages pédagogiques** : Pratiques numériques par discipline
 
-### Système de profils partagés
+### Système de stockage Firebase
 
-L'application utilise deux types de Gists par utilisateur :
-1. **Gist privé** : Contient les données personnelles de chaque utilisateur (notes, etc.)
-2. **Gist public individuel** : Contient le profil public de l'utilisateur
+L'application utilise **Cloud Firestore** avec deux collections :
+1. **Collection `users`** : Contient les données privées de chaque utilisateur (profil complet avec notes)
+2. **Collection `public_directory`** : Contient les profils publics (sans les notes privées)
 
 Chaque utilisateur :
 - Gère son propre profil dans la page "Arborescence de l'écosystème"
 - Voit tous les profils des autres IAN dans la page "Annuaire des IAN"
-- Son profil public est automatiquement créé et synchronisé dans son propre Gist public
-- L'annuaire recherche tous les Gists publics marqués "[IAN Profile]" pour afficher les profils
+- Son profil public est automatiquement synchronisé dans Firestore
+- L'annuaire charge tous les profils depuis la collection `public_directory`
 
 ## Architecture
 
@@ -62,13 +65,21 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 
 ### Gestion des données
 
-- **Service GitHub** : Classe `GitHubService` pour interagir avec l'API GitHub
+- **Service Firebase** : Classe `FirestoreService` pour interagir avec Cloud Firestore
+- **Authentification** : Token GitHub pour identifier l'utilisateur
 - **Stockage local** : Utilisation de `localStorage` pour les credentials
-- **Synchronisation** : Sauvegarde automatique dans GitHub Gists
+- **Synchronisation** : Sauvegarde automatique dans Cloud Firestore
 
 ## Installation et Utilisation
 
-### Configuration simple - Aucune configuration préalable requise !
+### Configuration Firebase
+
+**⚠️ Important** : Avant d'utiliser l'application, vous devez configurer Firebase :
+
+1. **Voir le fichier [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md)** pour les instructions détaillées
+2. **Configurer les règles de sécurité Firestore** dans la console Firebase
+
+### Utilisation
 
 1. **Créer un compte GitHub** (si vous n'en avez pas) : [github.com/signup](https://github.com/signup)
 2. **Générer un Personal Access Token** avec le scope `gist` : [GitHub Settings](https://github.com/settings/tokens)
@@ -78,12 +89,12 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 
 ### Synchronisation automatique
 
-Les données sont automatiquement synchronisées :
-- **Données personnelles** (incluant notes privées) → Gist privé personnel
-- **Profil public** (nom, prénom, discipline, département, etc.) → Gist public personnel
-- **Annuaire** → Agrège automatiquement tous les Gists publics "[IAN Profile]"
+Les données sont automatiquement synchronisées dans **Cloud Firestore** :
+- **Données personnelles** (incluant notes privées) → Collection `users`
+- **Profil public** (nom, prénom, discipline, département, etc.) → Collection `public_directory`
+- **Annuaire** → Charge automatiquement tous les profils depuis `public_directory`
 
-Aucune configuration manuelle n'est nécessaire, tout se fait automatiquement au premier login !
+Tout se synchronise automatiquement à chaque modification !
 
 ## Développement
 
@@ -107,19 +118,20 @@ Aucune configuration manuelle n'est nécessaire, tout se fait automatiquement au
 - **CSS3** : Styles et animations
 - **JavaScript ES6+** : Logique applicative moderne
 - **Tailwind CSS** : Framework CSS utility-first
-- **GitHub API** : Stockage et synchronisation des données
+- **Firebase / Cloud Firestore** : Base de données NoSQL temps réel
+- **GitHub API** : Authentification utilisateur
 - **Fetch API** : Chargement dynamique des composants
 
 ## Sécurité et Confidentialité
 
-- ⚠️ **Ne jamais partager votre Personal Access Token**
+- ⚠️ **Ne jamais partager votre Personal Access Token GitHub**
 - Les tokens sont stockés localement dans le navigateur
-- **Données privées** : Notes et réflexions restent dans votre Gist privé (non partagées)
-- **Données publiques** : Votre profil IAN (nom, prénom, discipline, département, mail académique, objectifs) est visible par tous dans l'annuaire
+- **Données privées** : Notes et réflexions sont stockées dans Firestore dans la collection `users` (non partagées publiquement)
+- **Données publiques** : Votre profil IAN (nom, prénom, discipline, département, mail académique, objectifs) est visible par tous dans l'annuaire via la collection `public_directory`
 - ⚠️ **Votre profil est public** : Ne saisissez que des informations professionnelles que vous acceptez de partager
-- Chaque utilisateur possède et contrôle ses propres Gists (privé et public)
-- Aucune donnée n'est envoyée à des serveurs tiers (uniquement GitHub)
-- Architecture décentralisée : pas de base de données centrale, chacun héberge ses données
+- **Base de données centralisée** : Firebase (Google Cloud) héberge toutes les données
+- **Règles de sécurité Firestore** : Configurables pour protéger l'accès aux données
+- **Gratuit** : L'offre Firebase Spark (gratuite) est largement suffisante pour votre usage
 
 ## Licence
 

@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Collection des utilisateurs (données privées)
+    // Chaque utilisateur peut uniquement lire et écrire ses propres données
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Alternative si vous utilisez GitHub username comme identifiant :
+      // allow read, write: if true;  // Pour test en mode ouvert
+      // À remplacer par une vraie authentification Firebase Auth + GitHub
+    }
+
+    // Collection de l'annuaire public
+    // Lecture : tout le monde peut lire
+    // Écriture : seulement l'utilisateur peut modifier son propre profil
+    match /public_directory/{userId} {
+      allow read: if true;  // Lecture publique
+      allow write: if request.auth != null && request.auth.uid == userId;
+
+      // Alternative si vous utilisez GitHub username comme identifiant :
+      // allow read: if true;
+      // allow write: if true;  // Pour test en mode ouvert
+      // À remplacer par une vraie authentification Firebase Auth + GitHub
+    }
+
+    // Bloquer tout accès par défaut aux autres collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
