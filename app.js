@@ -319,6 +319,7 @@ async function loadEcosystemContent() {
     if (!appData.contacts || appData.contacts.length === 0) {
         console.log('[IAN] Initializing default contacts...');
         appData.contacts = [
+            // Niveau 1 : National/Régional
             {
                 id: 1,
                 name: 'DNE',
@@ -349,17 +350,61 @@ async function loadEcosystemContent() {
             },
             {
                 id: 3,
+                name: 'IA-IPR/IEN',
+                emoji: '👨‍🏫',
+                color: 'bg-emerald-400',
+                importance: 2,
+                urgence: 'none',
+                open: false,
+                role: 'Inspecteur Académique - Inspecteur Pédagogique Régional / Inspecteur de l\'Éducation Nationale',
+                lienIAN: 'Supervision pédagogique et validation des projets numériques de l\'IAN',
+                coordonnees: 'À compléter',
+                notesPerso: '',
+                niveau: 1
+            },
+            // Niveau 2 : IAN
+            {
+                id: 4,
                 name: 'IAN académique',
                 emoji: '🎓',
                 color: 'bg-cyan-400',
                 importance: 3,
                 urgence: 'none',
                 open: false,
-                role: 'Interlocuteur Académique pour le Numérique',
-                lienIAN: 'Collègue IAN, échange de pratiques',
+                role: 'Interlocuteur Académique pour le Numérique - Coordonne les actions numériques au niveau académique',
+                lienIAN: 'Collègue IAN du même niveau académique, échange de pratiques et mutualisation',
                 coordonnees: 'À compléter',
                 notesPerso: '',
                 niveau: 2
+            },
+            {
+                id: 5,
+                name: 'IAN national',
+                emoji: '🇫🇷',
+                color: 'bg-blue-400',
+                importance: 2,
+                urgence: 'none',
+                open: false,
+                role: 'IAN référent au niveau national - Pilote les réseaux disciplinaires nationaux',
+                lienIAN: 'Pair national, partage de ressources et coordination des actions nationales',
+                coordonnees: 'À compléter',
+                notesPerso: '',
+                niveau: 2
+            },
+            // Niveau 3 : Terrain
+            {
+                id: 6,
+                name: 'Enseignant disciplinaire',
+                emoji: '📚',
+                color: 'bg-indigo-400',
+                importance: 1,
+                urgence: 'none',
+                open: false,
+                role: 'Enseignant de la discipline - Utilisateur final des ressources et outils numériques',
+                lienIAN: 'L\'IAN forme et accompagne les enseignants dans l\'usage du numérique',
+                coordonnees: 'Équipe pédagogique de l\'établissement',
+                notesPerso: '',
+                niveau: 3
             }
         ];
 
