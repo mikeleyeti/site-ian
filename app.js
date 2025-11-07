@@ -17,8 +17,13 @@ let appData = {
     newsletters: [],
     actualites: [],
     usages: [],
+    contacts: [], // Contacts de l'écosystème IAN
     lastUpdated: null
 };
+
+// Variables globales pour le filtrage des contacts
+let currentUrgenceFilter = 'all';
+let editingContact = null;
 
 // Gestion de l'authentification
 
@@ -240,7 +245,10 @@ async function loadDataFromFirestore() {
 
 // Sauvegarde des données vers Firestore
 async function saveDataToFirestore() {
-    if (!firestoreService.initialized || !firestoreService.username) return;
+    if (!firestoreService.initialized || !firestoreService.currentUser) {
+        console.warn('[IAN] Cannot save: Service not initialized or user not authenticated');
+        return;
+    }
 
     updateSyncStatus('Synchronisation...');
 
@@ -248,8 +256,9 @@ async function saveDataToFirestore() {
         appData.lastUpdated = new Date().toISOString();
         await firestoreService.saveUserData(appData);
         updateSyncStatus('Synchronisé');
+        console.log('[IAN] Data saved successfully to Firestore');
     } catch (error) {
-        console.error('Error saving data:', error);
+        console.error('[IAN] Error saving data:', error);
         updateSyncStatus('Erreur de synchronisation');
     }
 }
@@ -286,13 +295,13 @@ function navigateTo(page) {
 }
 
 // Chargement du contenu des pages
-function loadPageContent(page) {
+async function loadPageContent(page) {
     switch (page) {
         case 'ecosystem':
-            loadEcosystemContent();
+            await loadEcosystemContent();
             break;
         case 'directory':
-            loadDirectoryContent();
+            await loadDirectoryContent();
             break;
         case 'newsletter':
             loadNewsletterContent();
@@ -303,11 +312,138 @@ function loadPageContent(page) {
     }
 }
 
-function loadEcosystemContent() {
+async function loadEcosystemContent() {
     const content = document.getElementById('ecosystem-content');
+
+    // Initialiser les contacts par défaut si vide
+    if (!appData.contacts || appData.contacts.length === 0) {
+        console.log('[IAN] Initializing default contacts...');
+        appData.contacts = [
+            {
+                id: 1,
+                name: 'DNE',
+                emoji: '🏛️',
+                color: 'bg-teal-400',
+                importance: 3,
+                urgence: 'none',
+                open: false,
+                role: 'Direction du Numérique pour l\'Éducation - Pilotage national des projets numériques éducatifs',
+                lienIAN: 'L\'IAN reçoit les directives nationales et remonte les besoins du terrain',
+                coordonnees: 'dne@education.gouv.fr',
+                notesPerso: '',
+                niveau: 1
+            },
+            {
+                id: 2,
+                name: 'DRANE Orléans-Tours',
+                emoji: '🌐',
+                color: 'bg-sky-400',
+                importance: 2,
+                urgence: 'none',
+                open: false,
+                role: 'Délégué Régional Académique au Numérique pour l\'Éducation',
+                lienIAN: 'L\'IAN travaille sous la coordination du DRANE',
+                coordonnees: 'À compléter',
+                notesPerso: '',
+                niveau: 1
+            },
+            {
+                id: 3,
+                name: 'IAN académique',
+                emoji: '🎓',
+                color: 'bg-cyan-400',
+                importance: 3,
+                urgence: 'none',
+                open: false,
+                role: 'Interlocuteur Académique pour le Numérique',
+                lienIAN: 'Collègue IAN, échange de pratiques',
+                coordonnees: 'À compléter',
+                notesPerso: '',
+                niveau: 2
+            }
+        ];
+
+        // Sauvegarder les contacts par défaut
+        await saveDataToFirestore();
+    }
+
     content.innerHTML = `
+        <style>
+            .urgence-filter-btn {
+                padding: 8px 16px;
+                border-radius: 20px;
+                border: 2px solid transparent;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-size: 14px;
+                font-weight: 500;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .urgence-filter-btn.compact {
+                padding: 6px 8px;
+                border-radius: 12px;
+                font-size: 16px;
+                min-width: 32px;
+                height: 32px;
+                justify-content: center;
+            }
+            .urgence-filter-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+            .urgence-filter-btn.active {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+            .urgence-filter-btn.filter-all { background-color: #f8fafc; color: #475569; }
+            .urgence-filter-btn.filter-all.active { background-color: #3b82f6; color: white; }
+            .urgence-filter-btn.filter-high { background-color: #fee2e2; color: #dc2626; }
+            .urgence-filter-btn.filter-high.active { background-color: #dc2626; color: white; }
+            .urgence-filter-btn.filter-medium { background-color: #fed7aa; color: #ea580c; }
+            .urgence-filter-btn.filter-medium.active { background-color: #ea580c; color: white; }
+            .urgence-filter-btn.filter-low { background-color: #fef3c7; color: #d97706; }
+            .urgence-filter-btn.filter-low.active { background-color: #d97706; color: white; }
+            .urgence-filter-btn.filter-none { background-color: #f3f4f6; color: #6b7280; }
+            .urgence-filter-btn.filter-none.active { background-color: #6b7280; color: white; }
+
+            .contact-card {
+                transition: all 0.3s ease;
+                border: 2px solid transparent;
+            }
+            .contact-card:hover {
+                transform: translateY(-2px) scale(1.02);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+                border-color: #6b7280;
+                z-index: 10;
+            }
+
+            .star-rating {
+                display: inline-flex;
+                gap: 2px;
+            }
+            .star {
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-size: 18px;
+                filter: grayscale(100%);
+                transform: scale(1);
+            }
+            .star:hover {
+                color: #fbbf24;
+                filter: grayscale(0%);
+                transform: scale(1.2);
+            }
+            .star.active {
+                color: #f59e0b;
+                filter: grayscale(0%);
+                transform: scale(1.1);
+            }
+        </style>
+
         <div class="space-y-6">
-            <!-- Message d'information -->
+            <!-- Message d'information sur le profil public -->
             <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
                 <div class="flex">
                     <div class="flex-shrink-0">
@@ -323,12 +459,12 @@ function loadEcosystemContent() {
                 </div>
             </div>
 
-            <!-- Formulaire de profil avec expander -->
+            <!-- Formulaire de profil IAN avec expander -->
             <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg overflow-hidden">
                 <!-- En-tête cliquable pour expand/collapse -->
                 <div class="flex justify-between items-center p-6 cursor-pointer hover:bg-teal-100 transition-colors"
                      onclick="toggleProfileExpander()">
-                    <h2 class="text-2xl font-bold text-teal-800">Informations personnelles</h2>
+                    <h2 class="text-2xl font-bold text-teal-800">Mon Profil IAN</h2>
                     <span id="expander-icon" class="text-2xl text-teal-700 transform transition-transform duration-300">▼</span>
                 </div>
 
@@ -393,8 +529,99 @@ function loadEcosystemContent() {
                     </div>
                 </div>
             </div>
+
+            <!-- Séparateur visuel -->
+            <div class="border-t border-teal-300 my-8"></div>
+
+            <!-- Section Gestion des Contacts -->
+            <div class="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">🗂️ Mes Contacts Professionnels</h2>
+                <p class="text-sm text-gray-600">Gérez votre réseau IAN et priorisez vos actions</p>
+            </div>
+
+            <!-- Filtres et recherche -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="space-y-6">
+                    <div>
+                        <label for="contact-search" class="block text-sm font-medium text-gray-700 mb-2">
+                            🔍 Rechercher un contact
+                        </label>
+                        <input
+                            type="text"
+                            id="contact-search"
+                            placeholder="Nom, rôle, notes..."
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            oninput="filterContacts()"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            🎯 Filtrer par urgence
+                        </label>
+                        <div class="flex flex-wrap gap-3">
+                            <button
+                                class="urgence-filter-btn filter-all active"
+                                onclick="setUrgenceFilter('all')"
+                                data-filter="all"
+                            >
+                                <span>📋</span>
+                                <span>Toutes</span>
+                            </button>
+                            <button
+                                class="urgence-filter-btn filter-high"
+                                onclick="setUrgenceFilter('high')"
+                                data-filter="high"
+                            >
+                                <span>🔴</span>
+                                <span>Très urgent</span>
+                            </button>
+                            <button
+                                class="urgence-filter-btn filter-medium"
+                                onclick="setUrgenceFilter('medium')"
+                                data-filter="medium"
+                            >
+                                <span>🟠</span>
+                                <span>Moyennement urgent</span>
+                            </button>
+                            <button
+                                class="urgence-filter-btn filter-low"
+                                onclick="setUrgenceFilter('low')"
+                                data-filter="low"
+                            >
+                                <span>🟡</span>
+                                <span>Peu urgent</span>
+                            </button>
+                            <button
+                                class="urgence-filter-btn filter-none"
+                                onclick="setUrgenceFilter('none')"
+                                data-filter="none"
+                            >
+                                <span>⚪</span>
+                                <span>Aucune action</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <button
+                            onclick="addNewContact()"
+                            class="w-full px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center space-x-2"
+                        >
+                            <span>➕</span>
+                            <span>Ajouter un contact</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Liste des contacts -->
+            <div id="contacts-container" class="space-y-8">
+                <!-- Les contacts seront rendus ici -->
+            </div>
         </div>
     `;
+
+    // Rendre les contacts
+    renderContacts();
 }
 
 // Fonction pour expand/collapse le formulaire de profil
@@ -474,22 +701,362 @@ async function loadAllProfiles() {
     }
 }
 
-function renderContacts() {
-    if (appData.directoryProfiles.length === 0) {
-        return '<p class="col-span-full text-center text-gray-500">Aucun contact dans l\'annuaire</p>';
+// ==================== FONCTIONS DE GESTION DES CONTACTS ====================
+
+// Filtrer les contacts par recherche et urgence
+function filterContacts() {
+    const searchInput = document.getElementById('contact-search');
+    if (!searchInput) return;
+
+    const searchTerm = searchInput.value.toLowerCase();
+
+    const filteredContacts = appData.contacts.filter(contact => {
+        const matchesSearch = !searchTerm ||
+            contact.name.toLowerCase().includes(searchTerm) ||
+            contact.role.toLowerCase().includes(searchTerm) ||
+            (contact.notesPerso && contact.notesPerso.toLowerCase().includes(searchTerm));
+
+        const matchesUrgence = currentUrgenceFilter === 'all' || contact.urgence === currentUrgenceFilter;
+
+        return matchesSearch && matchesUrgence;
+    });
+
+    renderFilteredContacts(filteredContacts);
+}
+
+// Définir le filtre d'urgence
+function setUrgenceFilter(filter) {
+    currentUrgenceFilter = filter;
+
+    // Mettre à jour l'apparence des boutons
+    document.querySelectorAll('.urgence-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-filter="${filter}"]`)?.classList.add('active');
+
+    // Filtrer les contacts
+    filterContacts();
+}
+
+// Rendre les contacts filtrés
+function renderFilteredContacts(filteredContacts) {
+    const container = document.getElementById('contacts-container');
+    if (!container) return;
+
+    // Organiser les contacts par niveau
+    const niveau1 = filteredContacts.filter(c => c.niveau === 1);
+    const niveau2 = filteredContacts.filter(c => c.niveau === 2);
+    const niveau3 = filteredContacts.filter(c => c.niveau === 3);
+
+    let html = '';
+
+    // Niveau 1 : Direction nationale/régionale
+    if (niveau1.length > 0) {
+        html += `
+            <div class="col-span-full mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">🏛️ Niveau National / Régional</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    ${niveau1.map(contact => createContactCard(contact)).join('')}
+                </div>
+            </div>
+        `;
     }
 
-    return appData.directoryProfiles.map((contact, index) => `
-        <div class="contact-card bg-white rounded-lg shadow p-4 border-2">
-            <div class="flex justify-between items-start mb-2">
-                <h3 class="font-semibold text-lg">${contact.name}</h3>
-                <button onclick="deleteContact(${index})" class="text-red-500 hover:text-red-700">✕</button>
+    // Niveau 2 : IAN
+    if (niveau2.length > 0) {
+        html += `
+            <div class="col-span-full mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">🎓 Niveau IAN</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                    ${niveau2.map(contact => createContactCard(contact)).join('')}
+                </div>
             </div>
-            <p class="text-sm text-gray-600">${contact.discipline || 'Non renseigné'}</p>
-            <p class="text-sm text-gray-600">${contact.etablissement || 'Non renseigné'}</p>
-            <p class="text-sm text-blue-600">${contact.email || 'Non renseigné'}</p>
+        `;
+    }
+
+    // Niveau 3 : Terrain
+    if (niveau3.length > 0) {
+        html += `
+            <div class="col-span-full mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">📚 Niveau Terrain</h3>
+                <div class="grid grid-cols-1 gap-6 max-w-md mx-auto">
+                    ${niveau3.map(contact => createContactCard(contact)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    if (html === '') {
+        html = '<p class="text-center text-gray-500 py-8">Aucun contact trouvé avec ces critères</p>';
+    }
+
+    container.innerHTML = html;
+}
+
+// Créer une carte de contact
+function createContactCard(contact) {
+    const isEditing = editingContact === contact.id;
+
+    return `
+        <div class="contact-card bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-fit">
+            <div class="p-4">
+                <!-- En-tête compact -->
+                <div class="text-center mb-4">
+                    <div class="w-16 h-16 ${contact.color} rounded-full flex items-center justify-center text-white text-2xl mx-auto mb-3">
+                        ${contact.emoji}
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">${contact.name}</h3>
+                    <div class="flex items-center justify-center space-x-2 mb-3">
+                        <div class="star-rating">
+                            ${renderStars(contact.id, contact.importance)}
+                        </div>
+                    </div>
+                    <span class="text-xs text-gray-500 block mb-3">${getImportanceLabel(contact.importance)}</span>
+                </div>
+
+                <!-- Boutons d'urgence compacts -->
+                <div class="flex justify-center gap-1 mb-4">
+                    <button
+                        class="urgence-filter-btn compact filter-high ${contact.urgence === 'high' ? 'active' : ''}"
+                        onclick="updateContactUrgence(${contact.id}, 'high')"
+                        title="Très urgent"
+                    >
+                        🔴
+                    </button>
+                    <button
+                        class="urgence-filter-btn compact filter-medium ${contact.urgence === 'medium' ? 'active' : ''}"
+                        onclick="updateContactUrgence(${contact.id}, 'medium')"
+                        title="Moyennement urgent"
+                    >
+                        🟠
+                    </button>
+                    <button
+                        class="urgence-filter-btn compact filter-low ${contact.urgence === 'low' ? 'active' : ''}"
+                        onclick="updateContactUrgence(${contact.id}, 'low')"
+                        title="Peu urgent"
+                    >
+                        🟡
+                    </button>
+                    <button
+                        class="urgence-filter-btn compact filter-none ${contact.urgence === 'none' ? 'active' : ''}"
+                        onclick="updateContactUrgence(${contact.id}, 'none')"
+                        title="Aucune action"
+                    >
+                        ⚪
+                    </button>
+                </div>
+
+                <!-- Bouton d'expansion -->
+                <div class="text-center">
+                    <button
+                        onclick="toggleContact(${contact.id})"
+                        class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors text-sm flex items-center space-x-2 mx-auto"
+                    >
+                        <span>${contact.open ? 'Réduire' : 'Détails'}</span>
+                        <span>${contact.open ? '▲' : '▼'}</span>
+                    </button>
+                </div>
+
+                ${contact.open ? `
+                    <div class="border-t pt-4 mt-4 space-y-4">
+                        <!-- Rôle -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Rôle et responsabilités</label>
+                            ${isEditing ? `
+                                <textarea
+                                    class="w-full px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                    rows="2"
+                                    onchange="updateContactField(${contact.id}, 'role', this.value)"
+                                >${contact.role}</textarea>
+                            ` : `
+                                <p class="text-gray-600 bg-gray-50 p-2 rounded-md text-xs leading-relaxed">${contact.role}</p>
+                            `}
+                        </div>
+
+                        <!-- Lien avec IAN -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Lien avec l'IAN</label>
+                            ${isEditing ? `
+                                <textarea
+                                    class="w-full px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                    rows="2"
+                                    onchange="updateContactField(${contact.id}, 'lienIAN', this.value)"
+                                >${contact.lienIAN}</textarea>
+                            ` : `
+                                <p class="text-gray-600 bg-blue-50 p-2 rounded-md text-xs leading-relaxed">${contact.lienIAN}</p>
+                            `}
+                        </div>
+
+                        <!-- Coordonnées -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Coordonnées</label>
+                            ${isEditing ? `
+                                <input
+                                    type="text"
+                                    class="w-full px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                    value="${contact.coordonnees}"
+                                    onchange="updateContactField(${contact.id}, 'coordonnees', this.value)"
+                                >
+                            ` : `
+                                <p class="text-gray-600 bg-gray-50 p-2 rounded-md font-mono text-xs break-all">${contact.coordonnees}</p>
+                            `}
+                        </div>
+
+                        <!-- Plan de communication -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Plan de communication</label>
+                            <textarea
+                                class="w-full px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                rows="3"
+                                placeholder="Définissez votre stratégie de communication..."
+                                onchange="updateContactField(${contact.id}, 'notesPerso', this.value)"
+                            >${contact.notesPerso}</textarea>
+                        </div>
+
+                        <!-- Boutons d'action -->
+                        <div class="flex justify-between pt-3 border-t">
+                            ${isEditing ? `
+                                <button
+                                    onclick="stopEditingContact()"
+                                    class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm"
+                                >
+                                    <span>💾</span>
+                                    <span>Sauvegarder</span>
+                                </button>
+                            ` : `
+                                <button
+                                    onclick="startEditingContact(${contact.id})"
+                                    class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2 text-sm"
+                                >
+                                    <span>✏️</span>
+                                    <span>Modifier</span>
+                                </button>
+                            `}
+                            <button
+                                onclick="deleteEcosystemContact(${contact.id})"
+                                class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center space-x-2 text-sm"
+                            >
+                                <span>🗑️</span>
+                                <span>Supprimer</span>
+                            </button>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
         </div>
-    `).join('');
+    `;
+}
+
+// Rendre les contacts (fonction principale)
+function renderContacts() {
+    renderFilteredContacts(appData.contacts || []);
+}
+
+// Rendre les étoiles d'importance
+function renderStars(contactId, importance) {
+    let starsHtml = '';
+    for (let i = 1; i <= 3; i++) {
+        const active = i <= importance ? 'active' : '';
+        starsHtml += `<span class="star ${active}"
+            onclick="updateContactImportance(${contactId}, ${i})"
+        >⭐</span>`;
+    }
+    return starsHtml;
+}
+
+// Obtenir le label d'importance
+function getImportanceLabel(stars) {
+    switch(stars) {
+        case 1: return 'Peu important';
+        case 2: return 'Assez important';
+        case 3: return 'Très important';
+        default: return '';
+    }
+}
+
+// Basculer l'expansion d'un contact
+function toggleContact(id) {
+    const contact = appData.contacts.find(c => c.id === id);
+    if (contact) {
+        contact.open = !contact.open;
+        renderContacts();
+    }
+}
+
+// Mettre à jour l'importance d'un contact
+async function updateContactImportance(id, stars) {
+    const contact = appData.contacts.find(c => c.id === id);
+    if (contact) {
+        contact.importance = stars;
+        renderContacts();
+        await saveDataToFirestore();
+    }
+}
+
+// Mettre à jour l'urgence d'un contact
+async function updateContactUrgence(id, urgence) {
+    const contact = appData.contacts.find(c => c.id === id);
+    if (contact) {
+        contact.urgence = urgence;
+        renderContacts();
+        await saveDataToFirestore();
+    }
+}
+
+// Mettre à jour un champ d'un contact
+async function updateContactField(id, field, value) {
+    const contact = appData.contacts.find(c => c.id === id);
+    if (contact) {
+        contact[field] = value;
+        await saveDataToFirestore();
+    }
+}
+
+// Commencer l'édition d'un contact
+function startEditingContact(id) {
+    editingContact = id;
+    renderContacts();
+}
+
+// Arrêter l'édition d'un contact
+async function stopEditingContact() {
+    editingContact = null;
+    await saveDataToFirestore();
+    renderContacts();
+}
+
+// Ajouter un nouveau contact
+async function addNewContact() {
+    const name = prompt('Nom du contact:');
+    if (!name) return;
+
+    const newContact = {
+        id: Date.now(),
+        name: name,
+        emoji: '👤',
+        color: 'bg-gray-400',
+        importance: 1,
+        urgence: 'none',
+        open: true,
+        role: 'À définir',
+        lienIAN: 'À définir',
+        coordonnees: 'À compléter',
+        notesPerso: '',
+        niveau: 2 // Par défaut niveau IAN
+    };
+
+    appData.contacts.push(newContact);
+    await saveDataToFirestore();
+    renderContacts();
+}
+
+// Supprimer un contact de l'écosystème
+async function deleteEcosystemContact(id) {
+    if (confirm('Supprimer ce contact ?')) {
+        appData.contacts = appData.contacts.filter(c => c.id !== id);
+        await saveDataToFirestore();
+        renderContacts();
+    }
 }
 
 function loadNewsletterContent() {
