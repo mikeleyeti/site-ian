@@ -245,7 +245,10 @@ async function loadDataFromFirestore() {
 
 // Sauvegarde des données vers Firestore
 async function saveDataToFirestore() {
-    if (!firestoreService.initialized || !firestoreService.username) return;
+    if (!firestoreService.initialized || !firestoreService.currentUser) {
+        console.warn('[IAN] Cannot save: Service not initialized or user not authenticated');
+        return;
+    }
 
     updateSyncStatus('Synchronisation...');
 
@@ -253,8 +256,9 @@ async function saveDataToFirestore() {
         appData.lastUpdated = new Date().toISOString();
         await firestoreService.saveUserData(appData);
         updateSyncStatus('Synchronisé');
+        console.log('[IAN] Data saved successfully to Firestore');
     } catch (error) {
-        console.error('Error saving data:', error);
+        console.error('[IAN] Error saving data:', error);
         updateSyncStatus('Erreur de synchronisation');
     }
 }
@@ -291,13 +295,13 @@ function navigateTo(page) {
 }
 
 // Chargement du contenu des pages
-function loadPageContent(page) {
+async function loadPageContent(page) {
     switch (page) {
         case 'ecosystem':
-            loadEcosystemContent();
+            await loadEcosystemContent();
             break;
         case 'directory':
-            loadDirectoryContent();
+            await loadDirectoryContent();
             break;
         case 'newsletter':
             loadNewsletterContent();
@@ -308,11 +312,12 @@ function loadPageContent(page) {
     }
 }
 
-function loadEcosystemContent() {
+async function loadEcosystemContent() {
     const content = document.getElementById('ecosystem-content');
 
     // Initialiser les contacts par défaut si vide
     if (!appData.contacts || appData.contacts.length === 0) {
+        console.log('[IAN] Initializing default contacts...');
         appData.contacts = [
             {
                 id: 1,
@@ -357,6 +362,9 @@ function loadEcosystemContent() {
                 niveau: 2
             }
         ];
+
+        // Sauvegarder les contacts par défaut
+        await saveDataToFirestore();
     }
 
     content.innerHTML = `
@@ -1018,7 +1026,7 @@ async function stopEditingContact() {
 }
 
 // Ajouter un nouveau contact
-function addNewContact() {
+async function addNewContact() {
     const name = prompt('Nom du contact:');
     if (!name) return;
 
@@ -1038,7 +1046,7 @@ function addNewContact() {
     };
 
     appData.contacts.push(newContact);
-    saveDataToFirestore();
+    await saveDataToFirestore();
     renderContacts();
 }
 
