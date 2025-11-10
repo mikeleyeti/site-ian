@@ -412,10 +412,37 @@ async function loadEcosystemContent() {
         appData.contacts = [...defaultContacts];
         await saveDataToFirestore();
     } else {
+        // Nettoyer les doublons basés sur le nom (garder celui avec l'ID le plus bas = celui par défaut)
+        const uniqueContacts = [];
+        const seenNames = new Map();
+
+        for (const contact of appData.contacts) {
+            const existingContact = seenNames.get(contact.name);
+            if (!existingContact) {
+                // Premier contact avec ce nom
+                uniqueContacts.push(contact);
+                seenNames.set(contact.name, contact);
+            } else {
+                // Doublon trouvé : garder celui avec l'ID le plus bas (= contact par défaut)
+                if (contact.id < existingContact.id) {
+                    // Remplacer par celui avec l'ID le plus bas
+                    const index = uniqueContacts.indexOf(existingContact);
+                    uniqueContacts[index] = contact;
+                    seenNames.set(contact.name, contact);
+                    console.log(`[IAN] Removing duplicate contact: ${contact.name} (kept ID ${contact.id})`);
+                } else {
+                    console.log(`[IAN] Removing duplicate contact: ${contact.name} (kept ID ${existingContact.id})`);
+                }
+            }
+        }
+
+        const duplicatesRemoved = uniqueContacts.length !== appData.contacts.length;
+        appData.contacts = uniqueContacts;
+
         // Vérifier et ajouter les contacts manquants
         let contactsAdded = false;
         for (const defaultContact of defaultContacts) {
-            const exists = appData.contacts.some(c => c.id === defaultContact.id);
+            const exists = appData.contacts.some(c => c.id === defaultContact.id || c.name === defaultContact.name);
             if (!exists) {
                 console.log(`[IAN] Adding missing default contact: ${defaultContact.name}`);
                 appData.contacts.push({...defaultContact});
@@ -423,9 +450,12 @@ async function loadEcosystemContent() {
             }
         }
 
-        // Sauvegarder si des contacts ont été ajoutés
-        if (contactsAdded) {
+        // Sauvegarder si des contacts ont été ajoutés ou des doublons supprimés
+        if (contactsAdded || duplicatesRemoved) {
             await saveDataToFirestore();
+            if (duplicatesRemoved) {
+                console.log('[IAN] Duplicates removed and data saved');
+            }
         }
     }
 
