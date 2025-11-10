@@ -315,101 +315,118 @@ async function loadPageContent(page) {
 async function loadEcosystemContent() {
     const content = document.getElementById('ecosystem-content');
 
-    // Initialiser les contacts par défaut si vide
+    // Définir les contacts par défaut
+    const defaultContacts = [
+        // Niveau 1 : National/Régional
+        {
+            id: 1,
+            name: 'DNE',
+            emoji: '🏛️',
+            color: 'bg-teal-400',
+            importance: 3,
+            urgence: 'none',
+            open: false,
+            role: 'Direction du Numérique pour l\'Éducation - Pilotage national des projets numériques éducatifs',
+            lienIAN: 'L\'IAN reçoit les directives nationales et remonte les besoins du terrain',
+            coordonnees: 'dne@education.gouv.fr',
+            notesPerso: '',
+            niveau: 1
+        },
+        {
+            id: 2,
+            name: 'DRANE Orléans-Tours',
+            emoji: '🌐',
+            color: 'bg-sky-400',
+            importance: 2,
+            urgence: 'none',
+            open: false,
+            role: 'Délégué Régional Académique au Numérique pour l\'Éducation',
+            lienIAN: 'L\'IAN travaille sous la coordination du DRANE',
+            coordonnees: 'À compléter',
+            notesPerso: '',
+            niveau: 1
+        },
+        {
+            id: 3,
+            name: 'IA-IPR/IEN',
+            emoji: '👨‍🏫',
+            color: 'bg-emerald-400',
+            importance: 2,
+            urgence: 'none',
+            open: false,
+            role: 'Inspecteur Académique - Inspecteur Pédagogique Régional / Inspecteur de l\'Éducation Nationale',
+            lienIAN: 'Supervision pédagogique et validation des projets numériques de l\'IAN',
+            coordonnees: 'À compléter',
+            notesPerso: '',
+            niveau: 1
+        },
+        // Niveau 2 : IAN
+        {
+            id: 4,
+            name: 'IAN académique',
+            emoji: '🎓',
+            color: 'bg-cyan-400',
+            importance: 3,
+            urgence: 'none',
+            open: false,
+            role: 'Interlocuteur Académique pour le Numérique - Coordonne les actions numériques au niveau académique',
+            lienIAN: 'Collègue IAN du même niveau académique, échange de pratiques et mutualisation',
+            coordonnees: 'À compléter',
+            notesPerso: '',
+            niveau: 2
+        },
+        {
+            id: 5,
+            name: 'IAN national',
+            emoji: '🇫🇷',
+            color: 'bg-blue-400',
+            importance: 2,
+            urgence: 'none',
+            open: false,
+            role: 'IAN référent au niveau national - Pilote les réseaux disciplinaires nationaux',
+            lienIAN: 'Pair national, partage de ressources et coordination des actions nationales',
+            coordonnees: 'À compléter',
+            notesPerso: '',
+            niveau: 2
+        },
+        // Niveau 3 : Terrain
+        {
+            id: 6,
+            name: 'Enseignant disciplinaire',
+            emoji: '📚',
+            color: 'bg-indigo-400',
+            importance: 1,
+            urgence: 'none',
+            open: false,
+            role: 'Enseignant de la discipline - Utilisateur final des ressources et outils numériques',
+            lienIAN: 'L\'IAN forme et accompagne les enseignants dans l\'usage du numérique',
+            coordonnees: 'Équipe pédagogique de l\'établissement',
+            notesPerso: '',
+            niveau: 3
+        }
+    ];
+
+    // Initialiser les contacts si vide
     if (!appData.contacts || appData.contacts.length === 0) {
         console.log('[IAN] Initializing default contacts...');
-        appData.contacts = [
-            // Niveau 1 : National/Régional
-            {
-                id: 1,
-                name: 'DNE',
-                emoji: '🏛️',
-                color: 'bg-teal-400',
-                importance: 3,
-                urgence: 'none',
-                open: false,
-                role: 'Direction du Numérique pour l\'Éducation - Pilotage national des projets numériques éducatifs',
-                lienIAN: 'L\'IAN reçoit les directives nationales et remonte les besoins du terrain',
-                coordonnees: 'dne@education.gouv.fr',
-                notesPerso: '',
-                niveau: 1
-            },
-            {
-                id: 2,
-                name: 'DRANE Orléans-Tours',
-                emoji: '🌐',
-                color: 'bg-sky-400',
-                importance: 2,
-                urgence: 'none',
-                open: false,
-                role: 'Délégué Régional Académique au Numérique pour l\'Éducation',
-                lienIAN: 'L\'IAN travaille sous la coordination du DRANE',
-                coordonnees: 'À compléter',
-                notesPerso: '',
-                niveau: 1
-            },
-            {
-                id: 3,
-                name: 'IA-IPR/IEN',
-                emoji: '👨‍🏫',
-                color: 'bg-emerald-400',
-                importance: 2,
-                urgence: 'none',
-                open: false,
-                role: 'Inspecteur Académique - Inspecteur Pédagogique Régional / Inspecteur de l\'Éducation Nationale',
-                lienIAN: 'Supervision pédagogique et validation des projets numériques de l\'IAN',
-                coordonnees: 'À compléter',
-                notesPerso: '',
-                niveau: 1
-            },
-            // Niveau 2 : IAN
-            {
-                id: 4,
-                name: 'IAN académique',
-                emoji: '🎓',
-                color: 'bg-cyan-400',
-                importance: 3,
-                urgence: 'none',
-                open: false,
-                role: 'Interlocuteur Académique pour le Numérique - Coordonne les actions numériques au niveau académique',
-                lienIAN: 'Collègue IAN du même niveau académique, échange de pratiques et mutualisation',
-                coordonnees: 'À compléter',
-                notesPerso: '',
-                niveau: 2
-            },
-            {
-                id: 5,
-                name: 'IAN national',
-                emoji: '🇫🇷',
-                color: 'bg-blue-400',
-                importance: 2,
-                urgence: 'none',
-                open: false,
-                role: 'IAN référent au niveau national - Pilote les réseaux disciplinaires nationaux',
-                lienIAN: 'Pair national, partage de ressources et coordination des actions nationales',
-                coordonnees: 'À compléter',
-                notesPerso: '',
-                niveau: 2
-            },
-            // Niveau 3 : Terrain
-            {
-                id: 6,
-                name: 'Enseignant disciplinaire',
-                emoji: '📚',
-                color: 'bg-indigo-400',
-                importance: 1,
-                urgence: 'none',
-                open: false,
-                role: 'Enseignant de la discipline - Utilisateur final des ressources et outils numériques',
-                lienIAN: 'L\'IAN forme et accompagne les enseignants dans l\'usage du numérique',
-                coordonnees: 'Équipe pédagogique de l\'établissement',
-                notesPerso: '',
-                niveau: 3
-            }
-        ];
-
-        // Sauvegarder les contacts par défaut
+        appData.contacts = [...defaultContacts];
         await saveDataToFirestore();
+    } else {
+        // Vérifier et ajouter les contacts manquants
+        let contactsAdded = false;
+        for (const defaultContact of defaultContacts) {
+            const exists = appData.contacts.some(c => c.id === defaultContact.id);
+            if (!exists) {
+                console.log(`[IAN] Adding missing default contact: ${defaultContact.name}`);
+                appData.contacts.push({...defaultContact});
+                contactsAdded = true;
+            }
+        }
+
+        // Sauvegarder si des contacts ont été ajoutés
+        if (contactsAdded) {
+            await saveDataToFirestore();
+        }
     }
 
     content.innerHTML = `
