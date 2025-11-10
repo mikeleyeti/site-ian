@@ -25,6 +25,13 @@ let appData = {
 let currentUrgenceFilter = 'all';
 let editingContact = null;
 
+// État des accordéons (ouverts par défaut)
+let accordeonStates = {
+    niveau1: true,
+    niveau2: true,
+    niveau3: true
+};
+
 // Gestion de l'authentification
 
 // Basculer entre les onglets Connexion / Inscription
@@ -532,6 +539,29 @@ async function loadEcosystemContent() {
                 filter: grayscale(0%);
                 transform: scale(1.1);
             }
+
+            /* Styles pour les accordéons */
+            .accordion-header {
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .accordion-icon {
+                transition: transform 0.3s ease;
+                display: inline-block;
+            }
+
+            .accordion-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+                opacity: 0;
+            }
+
+            .accordion-content.open {
+                max-height: 5000px;
+                opacity: 1;
+            }
         </style>
 
         <div class="space-y-6">
@@ -795,6 +825,14 @@ async function loadAllProfiles() {
 
 // ==================== FONCTIONS DE GESTION DES CONTACTS ====================
 
+// Fonction pour toggle l'accordéon
+function toggleAccordeon(niveau) {
+    accordeonStates[niveau] = !accordeonStates[niveau];
+
+    // Re-rendre les contacts pour appliquer le changement
+    renderContacts();
+}
+
 // Filtrer les contacts par recherche et urgence
 function filterContacts() {
     const searchInput = document.getElementById('contact-search');
@@ -844,11 +882,20 @@ function renderFilteredContacts(filteredContacts) {
 
     // Niveau 1 : Direction nationale/régionale
     if (niveau1.length > 0) {
+        const isOpen = accordeonStates.niveau1;
         html += `
             <div class="col-span-full mb-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">🏛️ Niveau National / Régional</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    ${niveau1.map(contact => createContactCard(contact)).join('')}
+                <button
+                    onclick="toggleAccordeon('niveau1')"
+                    class="accordion-header w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                    <h3 class="text-lg font-semibold text-gray-800">🏛️ Niveau National / Régional</h3>
+                    <span class="accordion-icon text-2xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}">▼</span>
+                </button>
+                <div class="accordion-content ${isOpen ? 'open' : ''}" id="accordion-niveau1">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                        ${niveau1.map(contact => createContactCard(contact)).join('')}
+                    </div>
                 </div>
             </div>
         `;
@@ -856,11 +903,20 @@ function renderFilteredContacts(filteredContacts) {
 
     // Niveau 2 : IAN
     if (niveau2.length > 0) {
+        const isOpen = accordeonStates.niveau2;
         html += `
             <div class="col-span-full mb-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">🎓 Niveau IAN</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                    ${niveau2.map(contact => createContactCard(contact)).join('')}
+                <button
+                    onclick="toggleAccordeon('niveau2')"
+                    class="accordion-header w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-cyan-50 to-cyan-100 hover:from-cyan-100 hover:to-cyan-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                    <h3 class="text-lg font-semibold text-gray-800">🎓 Niveau IAN</h3>
+                    <span class="accordion-icon text-2xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}">▼</span>
+                </button>
+                <div class="accordion-content ${isOpen ? 'open' : ''}" id="accordion-niveau2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto pt-4">
+                        ${niveau2.map(contact => createContactCard(contact)).join('')}
+                    </div>
                 </div>
             </div>
         `;
@@ -868,11 +924,20 @@ function renderFilteredContacts(filteredContacts) {
 
     // Niveau 3 : Terrain
     if (niveau3.length > 0) {
+        const isOpen = accordeonStates.niveau3;
         html += `
             <div class="col-span-full mb-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">📚 Niveau Terrain</h3>
-                <div class="grid grid-cols-1 gap-6 max-w-md mx-auto">
-                    ${niveau3.map(contact => createContactCard(contact)).join('')}
+                <button
+                    onclick="toggleAccordeon('niveau3')"
+                    class="accordion-header w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                    <h3 class="text-lg font-semibold text-gray-800">📚 Niveau Terrain</h3>
+                    <span class="accordion-icon text-2xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}">▼</span>
+                </button>
+                <div class="accordion-content ${isOpen ? 'open' : ''}" id="accordion-niveau3">
+                    <div class="grid grid-cols-1 gap-6 max-w-md mx-auto pt-4">
+                        ${niveau3.map(contact => createContactCard(contact)).join('')}
+                    </div>
                 </div>
             </div>
         `;
