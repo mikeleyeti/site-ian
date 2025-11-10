@@ -25,6 +25,13 @@ let appData = {
 let currentUrgenceFilter = 'all';
 let editingContact = null;
 
+// État des accordéons (ouverts par défaut)
+let accordeonStates = {
+    niveau1: true,
+    niveau2: true,
+    niveau3: true
+};
+
 // Gestion de l'authentification
 
 // Basculer entre les onglets Connexion / Inscription
@@ -315,56 +322,148 @@ async function loadPageContent(page) {
 async function loadEcosystemContent() {
     const content = document.getElementById('ecosystem-content');
 
-    // Initialiser les contacts par défaut si vide
+    // Définir les contacts par défaut
+    const defaultContacts = [
+        // Niveau 1 : National/Régional
+        {
+            id: 1,
+            name: 'DNE',
+            emoji: '🏛️',
+            color: 'bg-teal-400',
+            importance: 3,
+            urgence: 'none',
+            open: false,
+            role: 'Direction du Numérique pour l\'Éducation - Pilotage national des projets numériques éducatifs',
+            lienIAN: 'L\'IAN reçoit les directives nationales et remonte les besoins du terrain',
+            coordonnees: 'dne@education.gouv.fr',
+            notesPerso: '',
+            niveau: 1
+        },
+        {
+            id: 2,
+            name: 'DRANE Orléans-Tours',
+            emoji: '🌐',
+            color: 'bg-sky-400',
+            importance: 2,
+            urgence: 'none',
+            open: false,
+            role: 'Délégué Régional Académique au Numérique pour l\'Éducation',
+            lienIAN: 'L\'IAN travaille sous la coordination du DRANE',
+            coordonnees: 'À compléter',
+            notesPerso: '',
+            niveau: 1
+        },
+        {
+            id: 3,
+            name: 'IA-IPR/IEN',
+            emoji: '👨‍🏫',
+            color: 'bg-emerald-400',
+            importance: 2,
+            urgence: 'none',
+            open: false,
+            role: 'Inspecteur Académique - Inspecteur Pédagogique Régional / Inspecteur de l\'Éducation Nationale',
+            lienIAN: 'Supervision pédagogique et validation des projets numériques de l\'IAN',
+            coordonnees: 'À compléter',
+            notesPerso: '',
+            niveau: 1
+        },
+        // Niveau 2 : IAN
+        {
+            id: 4,
+            name: 'IAN académique',
+            emoji: '🎓',
+            color: 'bg-cyan-400',
+            importance: 3,
+            urgence: 'none',
+            open: false,
+            role: 'Interlocuteur Académique pour le Numérique - Coordonne les actions numériques au niveau académique',
+            lienIAN: 'Collègue IAN du même niveau académique, échange de pratiques et mutualisation',
+            coordonnees: 'À compléter',
+            notesPerso: '',
+            niveau: 2
+        },
+        {
+            id: 5,
+            name: 'IAN national',
+            emoji: '🇫🇷',
+            color: 'bg-blue-400',
+            importance: 2,
+            urgence: 'none',
+            open: false,
+            role: 'IAN référent au niveau national - Pilote les réseaux disciplinaires nationaux',
+            lienIAN: 'Pair national, partage de ressources et coordination des actions nationales',
+            coordonnees: 'À compléter',
+            notesPerso: '',
+            niveau: 2
+        },
+        // Niveau 3 : Terrain
+        {
+            id: 6,
+            name: 'Enseignant disciplinaire',
+            emoji: '📚',
+            color: 'bg-indigo-400',
+            importance: 1,
+            urgence: 'none',
+            open: false,
+            role: 'Enseignant de la discipline - Utilisateur final des ressources et outils numériques',
+            lienIAN: 'L\'IAN forme et accompagne les enseignants dans l\'usage du numérique',
+            coordonnees: 'Équipe pédagogique de l\'établissement',
+            notesPerso: '',
+            niveau: 3
+        }
+    ];
+
+    // Initialiser les contacts si vide
     if (!appData.contacts || appData.contacts.length === 0) {
         console.log('[IAN] Initializing default contacts...');
-        appData.contacts = [
-            {
-                id: 1,
-                name: 'DNE',
-                emoji: '🏛️',
-                color: 'bg-teal-400',
-                importance: 3,
-                urgence: 'none',
-                open: false,
-                role: 'Direction du Numérique pour l\'Éducation - Pilotage national des projets numériques éducatifs',
-                lienIAN: 'L\'IAN reçoit les directives nationales et remonte les besoins du terrain',
-                coordonnees: 'dne@education.gouv.fr',
-                notesPerso: '',
-                niveau: 1
-            },
-            {
-                id: 2,
-                name: 'DRANE Orléans-Tours',
-                emoji: '🌐',
-                color: 'bg-sky-400',
-                importance: 2,
-                urgence: 'none',
-                open: false,
-                role: 'Délégué Régional Académique au Numérique pour l\'Éducation',
-                lienIAN: 'L\'IAN travaille sous la coordination du DRANE',
-                coordonnees: 'À compléter',
-                notesPerso: '',
-                niveau: 1
-            },
-            {
-                id: 3,
-                name: 'IAN académique',
-                emoji: '🎓',
-                color: 'bg-cyan-400',
-                importance: 3,
-                urgence: 'none',
-                open: false,
-                role: 'Interlocuteur Académique pour le Numérique',
-                lienIAN: 'Collègue IAN, échange de pratiques',
-                coordonnees: 'À compléter',
-                notesPerso: '',
-                niveau: 2
-            }
-        ];
-
-        // Sauvegarder les contacts par défaut
+        appData.contacts = [...defaultContacts];
         await saveDataToFirestore();
+    } else {
+        // Nettoyer les doublons basés sur le nom (garder celui avec l'ID le plus bas = celui par défaut)
+        const uniqueContacts = [];
+        const seenNames = new Map();
+
+        for (const contact of appData.contacts) {
+            const existingContact = seenNames.get(contact.name);
+            if (!existingContact) {
+                // Premier contact avec ce nom
+                uniqueContacts.push(contact);
+                seenNames.set(contact.name, contact);
+            } else {
+                // Doublon trouvé : garder celui avec l'ID le plus bas (= contact par défaut)
+                if (contact.id < existingContact.id) {
+                    // Remplacer par celui avec l'ID le plus bas
+                    const index = uniqueContacts.indexOf(existingContact);
+                    uniqueContacts[index] = contact;
+                    seenNames.set(contact.name, contact);
+                    console.log(`[IAN] Removing duplicate contact: ${contact.name} (kept ID ${contact.id})`);
+                } else {
+                    console.log(`[IAN] Removing duplicate contact: ${contact.name} (kept ID ${existingContact.id})`);
+                }
+            }
+        }
+
+        const duplicatesRemoved = uniqueContacts.length !== appData.contacts.length;
+        appData.contacts = uniqueContacts;
+
+        // Vérifier et ajouter les contacts manquants
+        let contactsAdded = false;
+        for (const defaultContact of defaultContacts) {
+            const exists = appData.contacts.some(c => c.id === defaultContact.id || c.name === defaultContact.name);
+            if (!exists) {
+                console.log(`[IAN] Adding missing default contact: ${defaultContact.name}`);
+                appData.contacts.push({...defaultContact});
+                contactsAdded = true;
+            }
+        }
+
+        // Sauvegarder si des contacts ont été ajoutés ou des doublons supprimés
+        if (contactsAdded || duplicatesRemoved) {
+            await saveDataToFirestore();
+            if (duplicatesRemoved) {
+                console.log('[IAN] Duplicates removed and data saved');
+            }
+        }
     }
 
     content.innerHTML = `
@@ -439,6 +538,29 @@ async function loadEcosystemContent() {
                 color: #f59e0b;
                 filter: grayscale(0%);
                 transform: scale(1.1);
+            }
+
+            /* Styles pour les accordéons */
+            .accordion-header {
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .accordion-icon {
+                transition: transform 0.3s ease;
+                display: inline-block;
+            }
+
+            .accordion-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+                opacity: 0;
+            }
+
+            .accordion-content.open {
+                max-height: 5000px;
+                opacity: 1;
             }
         </style>
 
@@ -703,6 +825,14 @@ async function loadAllProfiles() {
 
 // ==================== FONCTIONS DE GESTION DES CONTACTS ====================
 
+// Fonction pour toggle l'accordéon
+function toggleAccordeon(niveau) {
+    accordeonStates[niveau] = !accordeonStates[niveau];
+
+    // Re-rendre les contacts pour appliquer le changement
+    renderContacts();
+}
+
 // Filtrer les contacts par recherche et urgence
 function filterContacts() {
     const searchInput = document.getElementById('contact-search');
@@ -752,11 +882,20 @@ function renderFilteredContacts(filteredContacts) {
 
     // Niveau 1 : Direction nationale/régionale
     if (niveau1.length > 0) {
+        const isOpen = accordeonStates.niveau1;
         html += `
             <div class="col-span-full mb-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">🏛️ Niveau National / Régional</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    ${niveau1.map(contact => createContactCard(contact)).join('')}
+                <button
+                    onclick="toggleAccordeon('niveau1')"
+                    class="accordion-header w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                    <h3 class="text-lg font-semibold text-gray-800">🏛️ Niveau National / Régional</h3>
+                    <span class="accordion-icon text-2xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}">▼</span>
+                </button>
+                <div class="accordion-content ${isOpen ? 'open' : ''}" id="accordion-niveau1">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                        ${niveau1.map(contact => createContactCard(contact)).join('')}
+                    </div>
                 </div>
             </div>
         `;
@@ -764,11 +903,20 @@ function renderFilteredContacts(filteredContacts) {
 
     // Niveau 2 : IAN
     if (niveau2.length > 0) {
+        const isOpen = accordeonStates.niveau2;
         html += `
             <div class="col-span-full mb-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">🎓 Niveau IAN</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                    ${niveau2.map(contact => createContactCard(contact)).join('')}
+                <button
+                    onclick="toggleAccordeon('niveau2')"
+                    class="accordion-header w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-cyan-50 to-cyan-100 hover:from-cyan-100 hover:to-cyan-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                    <h3 class="text-lg font-semibold text-gray-800">🎓 Niveau IAN</h3>
+                    <span class="accordion-icon text-2xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}">▼</span>
+                </button>
+                <div class="accordion-content ${isOpen ? 'open' : ''}" id="accordion-niveau2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto pt-4">
+                        ${niveau2.map(contact => createContactCard(contact)).join('')}
+                    </div>
                 </div>
             </div>
         `;
@@ -776,11 +924,20 @@ function renderFilteredContacts(filteredContacts) {
 
     // Niveau 3 : Terrain
     if (niveau3.length > 0) {
+        const isOpen = accordeonStates.niveau3;
         html += `
             <div class="col-span-full mb-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">📚 Niveau Terrain</h3>
-                <div class="grid grid-cols-1 gap-6 max-w-md mx-auto">
-                    ${niveau3.map(contact => createContactCard(contact)).join('')}
+                <button
+                    onclick="toggleAccordeon('niveau3')"
+                    class="accordion-header w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                    <h3 class="text-lg font-semibold text-gray-800">📚 Niveau Terrain</h3>
+                    <span class="accordion-icon text-2xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}">▼</span>
+                </button>
+                <div class="accordion-content ${isOpen ? 'open' : ''}" id="accordion-niveau3">
+                    <div class="grid grid-cols-1 gap-6 max-w-md mx-auto pt-4">
+                        ${niveau3.map(contact => createContactCard(contact)).join('')}
+                    </div>
                 </div>
             </div>
         `;
