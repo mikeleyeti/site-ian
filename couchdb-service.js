@@ -1,0 +1,467 @@
+// PouchDB & CouchDB Service
+// Gère l'authentification CouchDB et la synchronisation des données avec PouchDB
+
+class CouchDBService {
+    constructor() {
+        this.localDB = null;
+        this.remoteDB = null;
+        this.publicDB = null;
+        this.remotePublicDB = null;
+        this.syncHandler = null;
+        this.publicSyncHandler = null;
+        this.currentUser = null;
+        this.initialized = false;
+        this.couchDBUrl = null;
+        this.couchDBCredentials = null;
+    }
+
+    // Initialisation du service avec PouchDB et CouchDB
+    async initialize(couchDBUrl, username, password) {
+        try {
+            console.log('[CouchDB] Initializing service...');
+
+            this.couchDBUrl = couchDBUrl;
+            this.couchDBCredentials = { username, password };
+
+            // Vérifier la connexion au CouchDB distant
+            const testUrl = `${couchDBUrl}/_session`;
+            const response = await fetch(testUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Basic ' + btoa(`${username}:${password}`)
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Impossible de se connecter au CouchDB. Vérifiez l\'URL et les identifiants.');
+            }
+
+            const sessionData = await response.json();
+            console.log('[CouchDB] Connexion réussie:', sessionData);
+
+            this.initialized = true;
+            return true;
+        } catch (error) {
+            console.error('[CouchDB] Erreur d\'initialisation:', error);
+            throw error;
+        }
+    }
+
+    // Créer les bases de données locales et distantes pour l'utilisateur
+    async setupUserDatabases(userId) {
+        try {
+            console.log('[CouchDB] Setting up databases for user:', userId);
+
+            // Créer la base de données locale (IndexedDB)
+            this.localDB = new PouchDB(`ian_user_${userId}`);
+
+            // Créer la base de données publique locale
+            this.publicDB = new PouchDB('ian_public');
+
+            // Créer/accéder à la base de données distante
+            const auth = `${this.couchDBCredentials.username}:${this.couchDBCredentials.password}`;
+            this.remoteDB = new PouchDB(`${this.couchDBUrl}/ian_user_${userId}`, {
+                auth: auth,
+                skip_setup: false
+            });
+
+            this.remotePublicDB = new PouchDB(`${this.couchDBUrl}/ian_public`, {
+                auth: auth,
+                skip_setup: false
+            });
+
+            // Configurer la synchronisation bidirectionnelle continue
+            this.syncHandler = this.localDB.sync(this.remoteDB, {
+                live: true,
+                retry: true
+            }).on('change', (info) => {
+                console.log('[CouchDB] Sync change:', info);
+            }).on('error', (err) => {
+                console.error('[CouchDB] Sync error:', err);
+            });
+
+            // Synchroniser la base publique
+            this.publicSyncHandler = this.publicDB.sync(this.remotePublicDB, {
+                live: true,
+                retry: true
+            }).on('change', (info) => {
+                console.log('[CouchDB] Public sync change:', info);
+            }).on('error', (err) => {
+                console.error('[CouchDB] Public sync error:', err);
+            });
+
+            console.log('[CouchDB] Databases setup complete');
+            return true;
+        } catch (error) {
+            console.error('[CouchDB] Error setting up databases:', error);
+            throw error;
+        }
+    }
+
+    // ========== MÉTHODES D'AUTHENTIFICATION ==========
+
+    // Inscription d'un nouvel utilisateur
+    async signUp(email, password, displayName) {
+        if (!this.initialized) {
+            throw new Error('Service non initialisé');
+        }
+
+        try {
+            console.log('[CouchDB] Creating user:', email);
+
+            // Créer l'utilisateur dans CouchDB
+            const auth = `${this.couchDBCredentials.username}:${this.couchDBCredentials.password}`;
+            const userDoc = {
+                name: email.replace(/[@.]/g, '_'),
+                password: password,
+                roles: ['user'],
+                type: 'user'
+            };
+
+            const response = await fetch(`${this.couchDBUrl}/_users/org.couchdb.user:${userDoc.name}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Basic ' + btoa(auth)
+                },
+                body: JSON.stringify(userDoc)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.reason || 'Erreur lors de la création du compte');
+            }
+
+            // Connexion automatique après inscription
+            return await this.signIn(email, password, displayName);
+        } catch (error) {
+            console.error('[CouchDB] Erreur lors de l\'inscription:', error);
+
+            let errorMessage = 'Erreur lors de l\'inscription';
+            if (error.message.includes('conflict')) {
+                errorMessage = 'Cette adresse email est déjà utilisée';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            return {
+                success: false,
+                error: errorMessage
+            };
+        }
+    }
+
+    // Connexion d'un utilisateur
+    async signIn(email, password, displayName = null) {
+        if (!this.initialized) {
+            throw new Error('Service non initialisé');
+        }
+
+        try {
+            console.log('[CouchDB] Signing in user:', email);
+
+            const username = email.replace(/[@.]/g, '_');
+
+            // Vérifier les identifiants
+            const response = await fetch(`${this.couchDBUrl}/_session`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: username,
+                    password: password
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Email ou mot de passe incorrect');
+            }
+
+            const sessionData = await response.json();
+            console.log('[CouchDB] Login successful:', sessionData);
+
+            // Créer l'objet utilisateur
+            this.currentUser = {
+                uid: username,
+                email: email,
+                displayName: displayName || email.split('@')[0]
+            };
+
+            // Sauvegarder dans localStorage
+            localStorage.setItem('couchdb_user', JSON.stringify(this.currentUser));
+            localStorage.setItem('couchdb_credentials', btoa(`${username}:${password}`));
+
+            // Configurer les bases de données
+            await this.setupUserDatabases(username);
+
+            return {
+                success: true,
+                user: this.currentUser
+            };
+        } catch (error) {
+            console.error('[CouchDB] Erreur lors de la connexion:', error);
+
+            let errorMessage = 'Erreur lors de la connexion';
+            if (error.message.includes('unauthorized') || error.message.includes('incorrect')) {
+                errorMessage = 'Email ou mot de passe incorrect';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            return {
+                success: false,
+                error: errorMessage
+            };
+        }
+    }
+
+    // Déconnexion
+    async signOutUser() {
+        if (!this.initialized) {
+            throw new Error('Service non initialisé');
+        }
+
+        try {
+            // Arrêter la synchronisation
+            if (this.syncHandler) {
+                this.syncHandler.cancel();
+            }
+            if (this.publicSyncHandler) {
+                this.publicSyncHandler.cancel();
+            }
+
+            // Supprimer les données locales
+            localStorage.removeItem('couchdb_user');
+            localStorage.removeItem('couchdb_credentials');
+
+            this.currentUser = null;
+            this.localDB = null;
+            this.remoteDB = null;
+            this.publicDB = null;
+            this.remotePublicDB = null;
+
+            return { success: true };
+        } catch (error) {
+            console.error('[CouchDB] Erreur lors de la déconnexion:', error);
+            return {
+                success: false,
+                error: 'Erreur lors de la déconnexion'
+            };
+        }
+    }
+
+    // Récupérer l'utilisateur actuel
+    getCurrentUser() {
+        return this.currentUser;
+    }
+
+    // Vérifier si l'utilisateur est connecté
+    isAuthenticated() {
+        return this.currentUser !== null;
+    }
+
+    // Obtenir l'UID de l'utilisateur actuel
+    getUserId() {
+        return this.currentUser ? this.currentUser.uid : null;
+    }
+
+    // Obtenir le nom d'affichage de l'utilisateur
+    getDisplayName() {
+        if (!this.currentUser) return null;
+        return this.currentUser.displayName || this.currentUser.email.split('@')[0];
+    }
+
+    // Restaurer la session depuis localStorage
+    async restoreSession() {
+        try {
+            const savedUser = localStorage.getItem('couchdb_user');
+            const savedCredentials = localStorage.getItem('couchdb_credentials');
+
+            if (savedUser && savedCredentials) {
+                this.currentUser = JSON.parse(savedUser);
+
+                // Reconfigurer les bases de données
+                await this.setupUserDatabases(this.currentUser.uid);
+
+                console.log('[CouchDB] Session restored for:', this.currentUser.email);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('[CouchDB] Error restoring session:', error);
+            return false;
+        }
+    }
+
+    // ========== MÉTHODES DE DONNÉES ==========
+
+    // Sauvegarder toutes les données de l'utilisateur
+    async saveUserData(data) {
+        if (!this.initialized || !this.currentUser || !this.localDB) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const docId = 'user_data';
+
+            // Essayer de récupérer le document existant pour obtenir le _rev
+            let existingDoc = null;
+            try {
+                existingDoc = await this.localDB.get(docId);
+            } catch (err) {
+                // Document n'existe pas encore, c'est normal
+            }
+
+            const doc = {
+                _id: docId,
+                ...data,
+                lastUpdated: new Date().toISOString()
+            };
+
+            // Si le document existe, ajouter le _rev
+            if (existingDoc) {
+                doc._rev = existingDoc._rev;
+            }
+
+            await this.localDB.put(doc);
+
+            // Mettre à jour le profil public (sans les notes privées)
+            await this.updatePublicProfile(data.ianProfile);
+
+            console.log('[CouchDB] Data saved successfully');
+            return true;
+        } catch (error) {
+            console.error('[CouchDB] Erreur lors de la sauvegarde des données:', error);
+            throw error;
+        }
+    }
+
+    // Récupérer les données de l'utilisateur
+    async getUserData() {
+        if (!this.initialized || !this.currentUser || !this.localDB) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const docId = 'user_data';
+            const doc = await this.localDB.get(docId);
+
+            // Supprimer les métadonnées PouchDB
+            const { _id, _rev, ...userData } = doc;
+            return userData;
+        } catch (error) {
+            if (error.status === 404) {
+                // Document n'existe pas encore
+                return null;
+            }
+            console.error('[CouchDB] Erreur lors de la récupération des données:', error);
+            throw error;
+        }
+    }
+
+    // Mettre à jour le profil public (sans notes privées)
+    async updatePublicProfile(profile) {
+        if (!this.initialized || !this.currentUser || !this.publicDB) {
+            return false;
+        }
+
+        try {
+            // Créer une copie du profil sans les notes privées
+            const { notes, ...publicProfile } = profile;
+
+            const userId = this.currentUser.uid;
+            const displayName = this.getDisplayName();
+
+            const publicData = {
+                _id: `profile_${userId}`,
+                userId: userId,
+                displayName: displayName,
+                email: this.currentUser.email,
+                ...publicProfile,
+                lastUpdated: new Date().toISOString()
+            };
+
+            // Essayer de récupérer le document existant
+            let existingDoc = null;
+            try {
+                existingDoc = await this.publicDB.get(publicData._id);
+            } catch (err) {
+                // Document n'existe pas encore
+            }
+
+            // Si le document existe, ajouter le _rev
+            if (existingDoc) {
+                publicData._rev = existingDoc._rev;
+            }
+
+            await this.publicDB.put(publicData);
+            console.log('[CouchDB] Public profile updated');
+
+            return true;
+        } catch (error) {
+            console.error('[CouchDB] Erreur lors de la mise à jour du profil public:', error);
+            return false;
+        }
+    }
+
+    // Récupérer tous les profils publics pour l'annuaire
+    async getSharedProfiles() {
+        if (!this.initialized || !this.publicDB) {
+            console.error('[CouchDB] Service non initialisé');
+            return [];
+        }
+
+        try {
+            const result = await this.publicDB.allDocs({
+                include_docs: true,
+                startkey: 'profile_',
+                endkey: 'profile_\ufff0'
+            });
+
+            const profiles = result.rows.map(row => {
+                const { _id, _rev, ...profileData } = row.doc;
+                return profileData;
+            });
+
+            return profiles;
+        } catch (error) {
+            console.error('[CouchDB] Erreur lors de la récupération des profils partagés:', error);
+            return [];
+        }
+    }
+
+    // Mettre à jour un champ spécifique du profil
+    async updateProfileField(field, value) {
+        if (!this.initialized || !this.currentUser || !this.localDB) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const docId = 'user_data';
+            const doc = await this.localDB.get(docId);
+
+            // Mettre à jour le champ dans ianProfile
+            if (!doc.ianProfile) {
+                doc.ianProfile = {};
+            }
+            doc.ianProfile[field] = value;
+            doc.lastUpdated = new Date().toISOString();
+
+            await this.localDB.put(doc);
+
+            // Si ce n'est pas le champ "notes", mettre à jour le profil public
+            if (field !== 'notes') {
+                await this.updatePublicProfile(doc.ianProfile);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('[CouchDB] Erreur lors de la mise à jour du champ:', error);
+            throw error;
+        }
+    }
+}
+
+// Instance globale
+const couchDBService = new CouchDBService();

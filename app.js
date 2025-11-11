@@ -107,11 +107,33 @@ function initLoginForm() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span>Connexion en cours...</span>';
 
-        // Initialiser Firebase
-        await firestoreService.initialize();
+        // Initialiser CouchDB (demander les credentials admin si nécessaire)
+        const savedCredentials = localStorage.getItem('couchdb_admin_credentials');
+        let adminCredentials;
+
+        if (savedCredentials) {
+            adminCredentials = JSON.parse(savedCredentials);
+        } else {
+            // Demander les credentials admin pour CouchDB
+            const adminUsername = prompt('Nom d\'utilisateur administrateur CouchDB:', 'admin');
+            const adminPassword = prompt('Mot de passe administrateur CouchDB:');
+
+            if (!adminUsername || !adminPassword) {
+                errorDiv.textContent = 'Identifiants administrateur requis';
+                errorDiv.classList.remove('hidden');
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Se connecter</span><span>→</span></span>';
+                return;
+            }
+
+            adminCredentials = { username: adminUsername, password: adminPassword };
+            localStorage.setItem('couchdb_admin_credentials', JSON.stringify(adminCredentials));
+        }
+
+        await couchDBService.initialize(window.couchDBConfig.url, adminCredentials.username, adminCredentials.password);
 
         // Connexion
-        const result = await firestoreService.signIn(email, password);
+        const result = await couchDBService.signIn(email, password);
 
         if (result.success) {
             console.log('[IAN] Login successful');
@@ -119,8 +141,8 @@ function initLoginForm() {
             // Mettre à jour l'interface
             document.getElementById('user-name').textContent = result.user.displayName;
 
-            // Charger les données depuis Firestore
-            await loadDataFromFirestore();
+            // Charger les données depuis CouchDB
+            await loadDataFromCouchDB();
 
             // Afficher l'application principale
             document.getElementById('login-screen').classList.remove('active');
@@ -162,11 +184,33 @@ function initLoginForm() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span>Création du compte...</span>';
 
-        // Initialiser Firebase
-        await firestoreService.initialize();
+        // Initialiser CouchDB (demander les credentials admin si nécessaire)
+        const savedCredentials = localStorage.getItem('couchdb_admin_credentials');
+        let adminCredentials;
+
+        if (savedCredentials) {
+            adminCredentials = JSON.parse(savedCredentials);
+        } else {
+            // Demander les credentials admin pour CouchDB
+            const adminUsername = prompt('Nom d\'utilisateur administrateur CouchDB:', 'admin');
+            const adminPassword = prompt('Mot de passe administrateur CouchDB:');
+
+            if (!adminUsername || !adminPassword) {
+                errorDiv.textContent = 'Identifiants administrateur requis';
+                errorDiv.classList.remove('hidden');
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Créer un compte</span><span>→</span></span>';
+                return;
+            }
+
+            adminCredentials = { username: adminUsername, password: adminPassword };
+            localStorage.setItem('couchdb_admin_credentials', JSON.stringify(adminCredentials));
+        }
+
+        await couchDBService.initialize(window.couchDBConfig.url, adminCredentials.username, adminCredentials.password);
 
         // Inscription
-        const result = await firestoreService.signUp(email, password, name);
+        const result = await couchDBService.signUp(email, password, name);
 
         if (result.success) {
             console.log('[IAN] Signup successful');
@@ -175,7 +219,7 @@ function initLoginForm() {
             document.getElementById('user-name').textContent = result.user.displayName;
 
             // Créer les données initiales
-            await firestoreService.saveUserData(appData);
+            await couchDBService.saveUserData(appData);
 
             // Afficher l'application principale
             document.getElementById('login-screen').classList.remove('active');
@@ -227,20 +271,20 @@ setTimeout(() => {
 // Debug: log when this script loads
 console.log('[IAN] app.js loaded and ready');
 
-// Chargement des données depuis Firestore
-async function loadDataFromFirestore() {
+// Chargement des données depuis CouchDB
+async function loadDataFromCouchDB() {
     updateSyncStatus('Chargement...');
 
     try {
-        // Récupérer les données de l'utilisateur depuis Firestore
-        const data = await firestoreService.getUserData();
+        // Récupérer les données de l'utilisateur depuis CouchDB
+        const data = await couchDBService.getUserData();
 
         if (data) {
             // Fusionner avec les données par défaut
             appData = { ...appData, ...data };
         } else {
             // Première connexion : créer les données initiales
-            await firestoreService.saveUserData(appData);
+            await couchDBService.saveUserData(appData);
         }
 
         updateSyncStatus('Synchronisé');
@@ -250,9 +294,9 @@ async function loadDataFromFirestore() {
     }
 }
 
-// Sauvegarde des données vers Firestore
-async function saveDataToFirestore() {
-    if (!firestoreService.initialized || !firestoreService.currentUser) {
+// Sauvegarde des données vers CouchDB
+async function saveDataToCouchDB() {
+    if (!couchDBService.initialized || !couchDBService.currentUser) {
         console.warn('[IAN] Cannot save: Service not initialized or user not authenticated');
         return;
     }
@@ -261,9 +305,9 @@ async function saveDataToFirestore() {
 
     try {
         appData.lastUpdated = new Date().toISOString();
-        await firestoreService.saveUserData(appData);
+        await couchDBService.saveUserData(appData);
         updateSyncStatus('Synchronisé');
-        console.log('[IAN] Data saved successfully to Firestore');
+        console.log('[IAN] Data saved successfully to CouchDB');
     } catch (error) {
         console.error('[IAN] Error saving data:', error);
         updateSyncStatus('Erreur de synchronisation');
@@ -272,7 +316,7 @@ async function saveDataToFirestore() {
 
 // Synchronisation manuelle
 async function manualSync() {
-    await saveDataToFirestore();
+    await saveDataToCouchDB();
 }
 
 // Mise à jour du statut de synchronisation
@@ -284,7 +328,7 @@ function updateSyncStatus(status) {
 // Déconnexion
 async function logout() {
     if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        await firestoreService.signOutUser();
+        await couchDBService.signOutUser();
         location.reload();
     }
 }
@@ -417,7 +461,7 @@ async function loadEcosystemContent() {
     if (!appData.contacts || appData.contacts.length === 0) {
         console.log('[IAN] Initializing default contacts...');
         appData.contacts = [...defaultContacts];
-        await saveDataToFirestore();
+        await saveDataToCouchDB();
     } else {
         // Nettoyer les doublons basés sur le nom (garder celui avec l'ID le plus bas = celui par défaut)
         const uniqueContacts = [];
@@ -459,7 +503,7 @@ async function loadEcosystemContent() {
 
         // Sauvegarder si des contacts ont été ajoutés ou des doublons supprimés
         if (contactsAdded || duplicatesRemoved) {
-            await saveDataToFirestore();
+            await saveDataToCouchDB();
             if (duplicatesRemoved) {
                 console.log('[IAN] Duplicates removed and data saved');
             }
@@ -784,7 +828,7 @@ async function loadAllProfiles() {
     const profilesList = document.getElementById('profiles-list');
 
     try {
-        const profiles = await firestoreService.getSharedProfiles();
+        const profiles = await couchDBService.getSharedProfiles();
 
         if (profiles.length === 0) {
             profilesList.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucun profil dans l\'annuaire. Soyez le premier à créer votre profil!</p>';
@@ -1146,7 +1190,7 @@ async function updateContactImportance(id, stars) {
     if (contact) {
         contact.importance = stars;
         renderContacts();
-        await saveDataToFirestore();
+        await saveDataToCouchDB();
     }
 }
 
@@ -1156,7 +1200,7 @@ async function updateContactUrgence(id, urgence) {
     if (contact) {
         contact.urgence = urgence;
         renderContacts();
-        await saveDataToFirestore();
+        await saveDataToCouchDB();
     }
 }
 
@@ -1165,7 +1209,7 @@ async function updateContactField(id, field, value) {
     const contact = appData.contacts.find(c => c.id === id);
     if (contact) {
         contact[field] = value;
-        await saveDataToFirestore();
+        await saveDataToCouchDB();
     }
 }
 
@@ -1178,7 +1222,7 @@ function startEditingContact(id) {
 // Arrêter l'édition d'un contact
 async function stopEditingContact() {
     editingContact = null;
-    await saveDataToFirestore();
+    await saveDataToCouchDB();
     renderContacts();
 }
 
@@ -1203,7 +1247,7 @@ async function addNewContact() {
     };
 
     appData.contacts.push(newContact);
-    await saveDataToFirestore();
+    await saveDataToCouchDB();
     renderContacts();
 }
 
@@ -1211,7 +1255,7 @@ async function addNewContact() {
 async function deleteEcosystemContact(id) {
     if (confirm('Supprimer ce contact ?')) {
         appData.contacts = appData.contacts.filter(c => c.id !== id);
-        await saveDataToFirestore();
+        await saveDataToCouchDB();
         renderContacts();
     }
 }
@@ -1240,8 +1284,8 @@ function loadUsagesContent() {
 async function updateProfile(field, value) {
     appData.ianProfile[field] = value;
 
-    // Sauvegarder dans Firestore (données privées + profil public)
-    await firestoreService.updateProfileField(field, value);
+    // Sauvegarder dans CouchDB (données privées + profil public)
+    await couchDBService.updateProfileField(field, value);
 }
 
 function addContact() {
@@ -1255,7 +1299,7 @@ function addContact() {
             dateCreation: new Date().toISOString()
         };
         appData.directoryProfiles.push(contact);
-        saveDataToFirestore();
+        saveDataToCouchDB();
         loadDirectoryContent();
     }
 }
@@ -1263,7 +1307,7 @@ function addContact() {
 function deleteContact(index) {
     if (confirm('Supprimer ce contact ?')) {
         appData.directoryProfiles.splice(index, 1);
-        saveDataToFirestore();
+        saveDataToCouchDB();
         loadDirectoryContent();
     }
 }
@@ -1272,30 +1316,40 @@ function deleteContact(index) {
 window.addEventListener('DOMContentLoaded', async () => {
     console.log('[IAN] DOM loaded, checking authentication...');
 
-    // Initialiser Firebase
-    await firestoreService.initialize();
+    // Vérifier si des credentials admin sont sauvegardés
+    const savedCredentials = localStorage.getItem('couchdb_admin_credentials');
 
-    // Firebase Auth persiste automatiquement l'authentification
-    // L'utilisateur sera automatiquement reconnecté s'il était connecté
-    // On attend un peu pour laisser le temps à onAuthStateChanged de se déclencher
-    setTimeout(async () => {
-        const currentUser = firestoreService.getCurrentUser();
+    if (savedCredentials) {
+        try {
+            const adminCredentials = JSON.parse(savedCredentials);
+            await couchDBService.initialize(window.couchDBConfig.url, adminCredentials.username, adminCredentials.password);
 
-        if (currentUser) {
-            console.log('[IAN] User already authenticated:', currentUser.email);
+            // Tenter de restaurer la session utilisateur
+            const restored = await couchDBService.restoreSession();
 
-            // Mettre à jour l'interface utilisateur
-            const displayName = firestoreService.getDisplayName();
-            document.getElementById('user-name').textContent = displayName;
+            if (restored) {
+                const currentUser = couchDBService.getCurrentUser();
+                console.log('[IAN] User session restored:', currentUser.email);
 
-            // Charger les données depuis Firestore
-            await loadDataFromFirestore();
+                // Mettre à jour l'interface utilisateur
+                const displayName = couchDBService.getDisplayName();
+                document.getElementById('user-name').textContent = displayName;
 
-            // Afficher l'application
-            document.getElementById('login-screen').classList.remove('active');
-            document.getElementById('main-app').style.display = 'block';
-        } else {
-            console.log('[IAN] No user authenticated');
+                // Charger les données depuis CouchDB
+                await loadDataFromCouchDB();
+
+                // Afficher l'application
+                document.getElementById('login-screen').classList.remove('active');
+                document.getElementById('main-app').style.display = 'block';
+            } else {
+                console.log('[IAN] No user session to restore');
+            }
+        } catch (error) {
+            console.error('[IAN] Error restoring session:', error);
+            // Supprimer les credentials invalides
+            localStorage.removeItem('couchdb_admin_credentials');
         }
-    }, 500); // Attendre 500ms pour que Firebase Auth se synchronise
+    } else {
+        console.log('[IAN] No admin credentials saved');
+    }
 });
