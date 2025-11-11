@@ -25,9 +25,15 @@
         </div>
     </div>
 
-    <!-- Load components first, then API service, then app logic -->
+    <!-- Load components first, then MongoDB Atlas service, then app logic -->
     <script src="components.js"></script>
-    <script src="api-service.js"></script>
+
+    <!-- OPTION 1: MongoDB Atlas (sans backend) - RECOMMANDÉ -->
+    <script src="mongodb-atlas-service.js"></script>
+
+    <!-- OPTION 2: Backend Node.js (décommentez si vous utilisez un backend) -->
+    <!-- <script src="api-service.js"></script> -->
+
     <script src="app.js"></script>
 </body>
 </html>
