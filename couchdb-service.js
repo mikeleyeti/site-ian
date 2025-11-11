@@ -12,7 +12,8 @@ class CouchDBService {
         this.currentUser = null;
         this.initialized = false;
         this.couchDBUrl = null;
-        this.couchDBCredentials = null;
+        this.couchDBCredentials = null; // Credentials admin
+        this.userCredentials = null; // Credentials utilisateur pour sync
     }
 
     // Initialisation du service avec PouchDB et CouchDB
@@ -48,7 +49,7 @@ class CouchDBService {
     }
 
     // Créer les bases de données locales et distantes pour l'utilisateur
-    async setupUserDatabases(userId) {
+    async setupUserDatabases(userId, userPassword) {
         try {
             console.log('[CouchDB] Setting up databases for user:', userId);
 
@@ -60,8 +61,12 @@ class CouchDBService {
             this.publicDB = new PouchDB('ian_public');
             console.log('[CouchDB] Public local DB created');
 
-            // Créer/accéder à la base de données distante
-            const auth = `${this.couchDBCredentials.username}:${this.couchDBCredentials.password}`;
+            // Auth admin pour créer les bases
+            const adminAuth = `${this.couchDBCredentials.username}:${this.couchDBCredentials.password}`;
+
+            // Auth utilisateur pour la synchronisation
+            const userAuth = `${userId}:${userPassword}`;
+            console.log('[CouchDB] Using user auth for sync:', userId);
 
             // Créer la base distante si elle n'existe pas
             const remoteDbName = `ian_user_${userId}`;
@@ -69,16 +74,64 @@ class CouchDBService {
                 const createResponse = await fetch(`${this.couchDBUrl}/${remoteDbName}`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': 'Basic ' + btoa(auth)
+                        'Authorization': 'Basic ' + btoa(adminAuth)
                     }
                 });
 
                 if (createResponse.ok) {
                     console.log('[CouchDB] Remote database created:', remoteDbName);
+
+                    // Configurer les permissions de la base pour cet utilisateur
+                    const securityDoc = {
+                        admins: {
+                            names: [],
+                            roles: []
+                        },
+                        members: {
+                            names: [userId], // L'utilisateur peut lire/écrire dans sa propre base
+                            roles: []
+                        }
+                    };
+
+                    const securityResponse = await fetch(`${this.couchDBUrl}/${remoteDbName}/_security`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Basic ' + btoa(adminAuth)
+                        },
+                        body: JSON.stringify(securityDoc)
+                    });
+
+                    if (securityResponse.ok) {
+                        console.log('[CouchDB] Security configured for user database');
+                    } else {
+                        console.warn('[CouchDB] Could not configure security:', await securityResponse.text());
+                    }
                 } else {
                     const result = await createResponse.json();
                     if (result.error === 'file_exists') {
                         console.log('[CouchDB] Remote database already exists:', remoteDbName);
+
+                        // Mettre à jour les permissions au cas où
+                        const securityDoc = {
+                            admins: {
+                                names: [],
+                                roles: []
+                            },
+                            members: {
+                                names: [userId],
+                                roles: []
+                            }
+                        };
+
+                        await fetch(`${this.couchDBUrl}/${remoteDbName}/_security`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Basic ' + btoa(adminAuth)
+                            },
+                            body: JSON.stringify(securityDoc)
+                        });
                     } else {
                         console.warn('[CouchDB] Could not create remote DB:', result);
                     }
@@ -92,12 +145,39 @@ class CouchDBService {
                 const createPublicResponse = await fetch(`${this.couchDBUrl}/ian_public`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': 'Basic ' + btoa(auth)
+                        'Authorization': 'Basic ' + btoa(adminAuth)
                     }
                 });
 
                 if (createPublicResponse.ok) {
                     console.log('[CouchDB] Remote public database created');
+
+                    // Configurer les permissions : lecture pour tous, écriture pour tous les membres
+                    const publicSecurityDoc = {
+                        admins: {
+                            names: [],
+                            roles: []
+                        },
+                        members: {
+                            names: [], // Vide = tous les utilisateurs authentifiés peuvent accéder
+                            roles: []
+                        }
+                    };
+
+                    const securityResponse = await fetch(`${this.couchDBUrl}/ian_public/_security`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Basic ' + btoa(adminAuth)
+                        },
+                        body: JSON.stringify(publicSecurityDoc)
+                    });
+
+                    if (securityResponse.ok) {
+                        console.log('[CouchDB] Security configured for public database');
+                    } else {
+                        console.warn('[CouchDB] Could not configure public security:', await securityResponse.text());
+                    }
                 } else {
                     const result = await createPublicResponse.json();
                     if (result.error === 'file_exists') {
@@ -110,18 +190,18 @@ class CouchDBService {
                 console.error('[CouchDB] Error creating remote public DB:', err);
             }
 
-            // Connecter aux bases distantes
+            // Connecter aux bases distantes avec les credentials UTILISATEUR
             this.remoteDB = new PouchDB(`${this.couchDBUrl}/${remoteDbName}`, {
-                auth: auth,
+                auth: userAuth,
                 skip_setup: true
             });
-            console.log('[CouchDB] Connected to remote DB');
+            console.log('[CouchDB] Connected to remote DB with user credentials');
 
             this.remotePublicDB = new PouchDB(`${this.couchDBUrl}/ian_public`, {
-                auth: auth,
+                auth: userAuth,
                 skip_setup: true
             });
-            console.log('[CouchDB] Connected to remote public DB');
+            console.log('[CouchDB] Connected to remote public DB with user credentials');
 
             // Configurer la synchronisation bidirectionnelle continue
             this.syncHandler = this.localDB.sync(this.remoteDB, {
@@ -194,7 +274,10 @@ class CouchDBService {
             }
 
             // Connexion automatique après inscription
-            return await this.signIn(email, password, displayName);
+            const result = await this.signIn(email, password, displayName);
+
+            // Si l'inscription a réussi, le password est déjà stocké dans signIn
+            return result;
         } catch (error) {
             console.error('[CouchDB] Erreur lors de l\'inscription:', error);
 
@@ -251,10 +334,10 @@ class CouchDBService {
 
             // Sauvegarder dans localStorage
             localStorage.setItem('couchdb_user', JSON.stringify(this.currentUser));
-            localStorage.setItem('couchdb_credentials', btoa(`${username}:${password}`));
+            localStorage.setItem('couchdb_user_password', password); // Stocker le password pour la sync
 
-            // Configurer les bases de données
-            await this.setupUserDatabases(username);
+            // Configurer les bases de données avec le password utilisateur
+            await this.setupUserDatabases(username, password);
 
             return {
                 success: true,
@@ -294,7 +377,7 @@ class CouchDBService {
 
             // Supprimer les données locales
             localStorage.removeItem('couchdb_user');
-            localStorage.removeItem('couchdb_credentials');
+            localStorage.removeItem('couchdb_user_password');
 
             this.currentUser = null;
             this.localDB = null;
@@ -337,13 +420,13 @@ class CouchDBService {
     async restoreSession() {
         try {
             const savedUser = localStorage.getItem('couchdb_user');
-            const savedCredentials = localStorage.getItem('couchdb_credentials');
+            const savedPassword = localStorage.getItem('couchdb_user_password');
 
-            if (savedUser && savedCredentials) {
+            if (savedUser && savedPassword) {
                 this.currentUser = JSON.parse(savedUser);
 
-                // Reconfigurer les bases de données
-                await this.setupUserDatabases(this.currentUser.uid);
+                // Reconfigurer les bases de données avec le password utilisateur
+                await this.setupUserDatabases(this.currentUser.uid, savedPassword);
 
                 console.log('[CouchDB] Session restored for:', this.currentUser.email);
                 return true;
