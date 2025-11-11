@@ -25,15 +25,32 @@
         </div>
     </div>
 
-    <!-- Load components first, then MongoDB Atlas service, then app logic -->
+    <!-- Load components first -->
     <script src="components.js"></script>
 
-    <!-- OPTION 1: MongoDB Atlas (sans backend) - RECOMMANDÉ -->
-    <script src="mongodb-atlas-service.js"></script>
+    <!-- ============================================ -->
+    <!-- CHOISISSEZ VOTRE SOLUTION DE BASE DE DONNÉES -->
+    <!-- ============================================ -->
 
-    <!-- OPTION 2: Backend Node.js (décommentez si vous utilisez un backend) -->
+    <!-- OPTION 1: PouchDB + CouchDB (RECOMMANDÉ) -->
+    <!-- ✅ Votre propre serveur -->
+    <!-- ✅ Pas de backend Node.js -->
+    <!-- ✅ Gratuit et open source -->
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    <script src="pouchdb-service.js"></script>
+
+    <!-- OPTION 2: MongoDB Atlas (cloud gratuit, sans backend) -->
+    <!-- ✅ Gratuit jusqu'à 512 MB -->
+    <!-- ✅ Pas de serveur à gérer -->
+    <!-- ❌ Nécessite un compte MongoDB Atlas -->
+    <!-- <script src="mongodb-atlas-service.js"></script> -->
+
+    <!-- OPTION 3: Backend Node.js + MongoDB (pour contrôle total) -->
+    <!-- ✅ Contrôle total du backend -->
+    <!-- ❌ Nécessite Node.js installé sur le serveur -->
     <!-- <script src="api-service.js"></script> -->
 
+    <!-- Load app logic -->
     <script src="app.js"></script>
 </body>
 </html>
