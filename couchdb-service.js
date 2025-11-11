@@ -151,33 +151,6 @@ class CouchDBService {
 
                 if (createPublicResponse.ok) {
                     console.log('[CouchDB] Remote public database created');
-
-                    // Configurer les permissions : lecture pour tous, écriture pour tous les membres
-                    const publicSecurityDoc = {
-                        admins: {
-                            names: [],
-                            roles: []
-                        },
-                        members: {
-                            names: [], // Vide = tous les utilisateurs authentifiés peuvent accéder
-                            roles: []
-                        }
-                    };
-
-                    const securityResponse = await fetch(`${this.couchDBUrl}/ian_public/_security`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Basic ' + btoa(adminAuth)
-                        },
-                        body: JSON.stringify(publicSecurityDoc)
-                    });
-
-                    if (securityResponse.ok) {
-                        console.log('[CouchDB] Security configured for public database');
-                    } else {
-                        console.warn('[CouchDB] Could not configure public security:', await securityResponse.text());
-                    }
                 } else {
                     const result = await createPublicResponse.json();
                     if (result.error === 'file_exists') {
@@ -186,8 +159,47 @@ class CouchDBService {
                         console.warn('[CouchDB] Could not create remote public DB:', result);
                     }
                 }
+
+                // Récupérer la configuration de sécurité actuelle
+                const getSecurityResponse = await fetch(`${this.couchDBUrl}/ian_public/_security`, {
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(adminAuth)
+                    }
+                });
+
+                let currentSecurity = {
+                    admins: { names: [], roles: [] },
+                    members: { names: [], roles: [] }
+                };
+
+                if (getSecurityResponse.ok) {
+                    currentSecurity = await getSecurityResponse.json();
+                }
+
+                // Ajouter l'utilisateur actuel s'il n'est pas déjà dans la liste
+                if (!currentSecurity.members.names.includes(userId)) {
+                    currentSecurity.members.names.push(userId);
+                    console.log('[CouchDB] Adding user to public database members:', userId);
+
+                    const updateSecurityResponse = await fetch(`${this.couchDBUrl}/ian_public/_security`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Basic ' + btoa(adminAuth)
+                        },
+                        body: JSON.stringify(currentSecurity)
+                    });
+
+                    if (updateSecurityResponse.ok) {
+                        console.log('[CouchDB] User added to public database members');
+                    } else {
+                        console.warn('[CouchDB] Could not update public security:', await updateSecurityResponse.text());
+                    }
+                } else {
+                    console.log('[CouchDB] User already has access to public database');
+                }
             } catch (err) {
-                console.error('[CouchDB] Error creating remote public DB:', err);
+                console.error('[CouchDB] Error creating/configuring remote public DB:', err);
             }
 
             // Connecter aux bases distantes avec les credentials UTILISATEUR
