@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  couchdb:
+    image: couchdb:3.3
+    container_name: couchdb
+    restart: always
+    ports:
+      - "5984:5984"
+    environment:
+      # Credentials admin
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=votre_mot_de_passe_fort
+
+      # Secret pour les cookies (générez-en un aléatoire)
+      - COUCHDB_SECRET=changez_cette_valeur_par_quelque_chose_de_tres_aleatoire
+
+      # CRITIQUE : Permettre l'auto-inscription
+      - COUCHDB_CONFIG_CHTTPD_REQUIRE_VALID_USER=false
+
+      # CORS
+      - COUCHDB_CONFIG_HTTPD_ENABLE_CORS=true
+      - COUCHDB_CONFIG_CORS_ORIGINS=*
+      - COUCHDB_CONFIG_CORS_CREDENTIALS=true
+      - COUCHDB_CONFIG_CORS_METHODS=GET, PUT, POST, HEAD, DELETE
+      - COUCHDB_CONFIG_CORS_HEADERS=accept, authorization, content-type, origin, referer, x-requested-with
+
+    volumes:
+      # Persister les données
+      - couchdb-data:/opt/couchdb/data
+
+      # Persister la configuration
+      - couchdb-config:/opt/couchdb/etc/local.d
+
+    networks:
+      - couchdb-network
+
+volumes:
+  couchdb-data:
+  couchdb-config:
+
+networks:
+  couchdb-network:
