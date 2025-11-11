@@ -54,28 +54,85 @@ class CouchDBService {
 
             // Créer la base de données locale (IndexedDB)
             this.localDB = new PouchDB(`ian_user_${userId}`);
+            console.log('[CouchDB] Local DB created:', `ian_user_${userId}`);
 
             // Créer la base de données publique locale
             this.publicDB = new PouchDB('ian_public');
+            console.log('[CouchDB] Public local DB created');
 
             // Créer/accéder à la base de données distante
             const auth = `${this.couchDBCredentials.username}:${this.couchDBCredentials.password}`;
-            this.remoteDB = new PouchDB(`${this.couchDBUrl}/ian_user_${userId}`, {
+
+            // Créer la base distante si elle n'existe pas
+            const remoteDbName = `ian_user_${userId}`;
+            try {
+                const createResponse = await fetch(`${this.couchDBUrl}/${remoteDbName}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(auth)
+                    }
+                });
+
+                if (createResponse.ok) {
+                    console.log('[CouchDB] Remote database created:', remoteDbName);
+                } else {
+                    const result = await createResponse.json();
+                    if (result.error === 'file_exists') {
+                        console.log('[CouchDB] Remote database already exists:', remoteDbName);
+                    } else {
+                        console.warn('[CouchDB] Could not create remote DB:', result);
+                    }
+                }
+            } catch (err) {
+                console.error('[CouchDB] Error creating remote DB:', err);
+            }
+
+            // Créer la base publique distante si elle n'existe pas
+            try {
+                const createPublicResponse = await fetch(`${this.couchDBUrl}/ian_public`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(auth)
+                    }
+                });
+
+                if (createPublicResponse.ok) {
+                    console.log('[CouchDB] Remote public database created');
+                } else {
+                    const result = await createPublicResponse.json();
+                    if (result.error === 'file_exists') {
+                        console.log('[CouchDB] Remote public database already exists');
+                    } else {
+                        console.warn('[CouchDB] Could not create remote public DB:', result);
+                    }
+                }
+            } catch (err) {
+                console.error('[CouchDB] Error creating remote public DB:', err);
+            }
+
+            // Connecter aux bases distantes
+            this.remoteDB = new PouchDB(`${this.couchDBUrl}/${remoteDbName}`, {
                 auth: auth,
-                skip_setup: false
+                skip_setup: true
             });
+            console.log('[CouchDB] Connected to remote DB');
 
             this.remotePublicDB = new PouchDB(`${this.couchDBUrl}/ian_public`, {
                 auth: auth,
-                skip_setup: false
+                skip_setup: true
             });
+            console.log('[CouchDB] Connected to remote public DB');
 
             // Configurer la synchronisation bidirectionnelle continue
             this.syncHandler = this.localDB.sync(this.remoteDB, {
                 live: true,
                 retry: true
             }).on('change', (info) => {
-                console.log('[CouchDB] Sync change:', info);
+                console.log('[CouchDB] Sync change:', info.direction, info.change.docs.length, 'docs');
+            }).on('paused', () => {
+                console.log('[CouchDB] Sync paused (up to date)');
+            }).on('active', () => {
+                console.log('[CouchDB] Sync resumed');
             }).on('error', (err) => {
                 console.error('[CouchDB] Sync error:', err);
             });
@@ -85,15 +142,19 @@ class CouchDBService {
                 live: true,
                 retry: true
             }).on('change', (info) => {
-                console.log('[CouchDB] Public sync change:', info);
+                console.log('[CouchDB] Public sync change:', info.direction, info.change.docs.length, 'docs');
+            }).on('paused', () => {
+                console.log('[CouchDB] Public sync paused (up to date)');
+            }).on('active', () => {
+                console.log('[CouchDB] Public sync resumed');
             }).on('error', (err) => {
                 console.error('[CouchDB] Public sync error:', err);
             });
 
-            console.log('[CouchDB] Databases setup complete');
+            console.log('[CouchDB] ✅ Databases setup complete');
             return true;
         } catch (error) {
-            console.error('[CouchDB] Error setting up databases:', error);
+            console.error('[CouchDB] ❌ Error setting up databases:', error);
             throw error;
         }
     }
@@ -299,18 +360,22 @@ class CouchDBService {
     // Sauvegarder toutes les données de l'utilisateur
     async saveUserData(data) {
         if (!this.initialized || !this.currentUser || !this.localDB) {
-            throw new Error('Service non initialisé ou utilisateur non connecté');
+            const errorMsg = `Service non initialisé (initialized: ${this.initialized}, currentUser: ${!!this.currentUser}, localDB: ${!!this.localDB})`;
+            console.error('[CouchDB]', errorMsg);
+            throw new Error(errorMsg);
         }
 
         try {
+            console.log('[CouchDB] Saving user data...');
             const docId = 'user_data';
 
             // Essayer de récupérer le document existant pour obtenir le _rev
             let existingDoc = null;
             try {
                 existingDoc = await this.localDB.get(docId);
+                console.log('[CouchDB] Existing document found, will update');
             } catch (err) {
-                // Document n'existe pas encore, c'est normal
+                console.log('[CouchDB] No existing document, will create new');
             }
 
             const doc = {
@@ -324,15 +389,20 @@ class CouchDBService {
                 doc._rev = existingDoc._rev;
             }
 
-            await this.localDB.put(doc);
+            const result = await this.localDB.put(doc);
+            console.log('[CouchDB] ✅ User data saved to local DB:', result);
 
             // Mettre à jour le profil public (sans les notes privées)
-            await this.updatePublicProfile(data.ianProfile);
+            if (data.ianProfile) {
+                await this.updatePublicProfile(data.ianProfile);
+            } else {
+                console.warn('[CouchDB] No ianProfile in data, skipping public profile update');
+            }
 
-            console.log('[CouchDB] Data saved successfully');
+            console.log('[CouchDB] ✅ Data saved successfully');
             return true;
         } catch (error) {
-            console.error('[CouchDB] Erreur lors de la sauvegarde des données:', error);
+            console.error('[CouchDB] ❌ Erreur lors de la sauvegarde des données:', error);
             throw error;
         }
     }
@@ -363,10 +433,13 @@ class CouchDBService {
     // Mettre à jour le profil public (sans notes privées)
     async updatePublicProfile(profile) {
         if (!this.initialized || !this.currentUser || !this.publicDB) {
+            console.warn('[CouchDB] Cannot update public profile: service not ready');
             return false;
         }
 
         try {
+            console.log('[CouchDB] Updating public profile...');
+
             // Créer une copie du profil sans les notes privées
             const { notes, ...publicProfile } = profile;
 
@@ -382,12 +455,15 @@ class CouchDBService {
                 lastUpdated: new Date().toISOString()
             };
 
+            console.log('[CouchDB] Public profile data:', publicData);
+
             // Essayer de récupérer le document existant
             let existingDoc = null;
             try {
                 existingDoc = await this.publicDB.get(publicData._id);
+                console.log('[CouchDB] Existing public profile found, will update');
             } catch (err) {
-                // Document n'existe pas encore
+                console.log('[CouchDB] No existing public profile, will create new');
             }
 
             // Si le document existe, ajouter le _rev
@@ -395,12 +471,12 @@ class CouchDBService {
                 publicData._rev = existingDoc._rev;
             }
 
-            await this.publicDB.put(publicData);
-            console.log('[CouchDB] Public profile updated');
+            const result = await this.publicDB.put(publicData);
+            console.log('[CouchDB] ✅ Public profile saved:', result);
 
             return true;
         } catch (error) {
-            console.error('[CouchDB] Erreur lors de la mise à jour du profil public:', error);
+            console.error('[CouchDB] ❌ Erreur lors de la mise à jour du profil public:', error);
             return false;
         }
     }
