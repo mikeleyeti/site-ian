@@ -25,42 +25,9 @@
         </div>
     </div>
 
-    <!-- Firebase SDK (v9+ modular) -->
-    <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBj4goa3iRVjVRqehB-5sQzFpe08oyMaMI",
-            authDomain: "siteian.firebaseapp.com",
-            projectId: "siteian",
-            storageBucket: "siteian.firebasestorage.app",
-            messagingSenderId: "912453977063",
-            appId: "1:912453977063:web:a9551958b6f1aebdd1b342",
-            measurementId: "G-496X0XPZ25"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        // Make Firebase instances globally available
-        window.firebaseApp = app;
-        window.firestoreDb = db;
-        window.firebaseAuth = auth;
-
-        // Signal that Firebase is ready
-        window.firebaseReady = true;
-        window.dispatchEvent(new Event('firebaseInitialized'));
-    </script>
-
-    <!-- Load components first, then Firebase service, then app logic -->
+    <!-- Load components first, then API service, then app logic -->
     <script src="components.js"></script>
-    <script src="firebase-service.js"></script>
+    <script src="api-service.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // IAN - Écosystème Interactif - Application JavaScript
-// Utilise FirestoreService (défini dans firebase-service.js) pour le stockage des données
+// Utilise ApiService (défini dans api-service.js) pour le stockage des données via MongoDB
 
 // Structure de données globale
 let appData = {
@@ -107,7 +107,7 @@ function initLoginForm() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span>Connexion en cours...</span>';
 
-        // Initialiser Firebase
+        // Initialiser l'API Service
         await firestoreService.initialize();
 
         // Connexion
@@ -162,7 +162,7 @@ function initLoginForm() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span>Création du compte...</span>';
 
-        // Initialiser Firebase
+        // Initialiser l'API Service
         await firestoreService.initialize();
 
         // Inscription
@@ -227,12 +227,12 @@ setTimeout(() => {
 // Debug: log when this script loads
 console.log('[IAN] app.js loaded and ready');
 
-// Chargement des données depuis Firestore
+// Chargement des données depuis l'API MongoDB
 async function loadDataFromFirestore() {
     updateSyncStatus('Chargement...');
 
     try {
-        // Récupérer les données de l'utilisateur depuis Firestore
+        // Récupérer les données de l'utilisateur depuis l'API
         const data = await firestoreService.getUserData();
 
         if (data) {
@@ -250,7 +250,7 @@ async function loadDataFromFirestore() {
     }
 }
 
-// Sauvegarde des données vers Firestore
+// Sauvegarde des données vers l'API MongoDB
 async function saveDataToFirestore() {
     if (!firestoreService.initialized || !firestoreService.currentUser) {
         console.warn('[IAN] Cannot save: Service not initialized or user not authenticated');
@@ -263,7 +263,7 @@ async function saveDataToFirestore() {
         appData.lastUpdated = new Date().toISOString();
         await firestoreService.saveUserData(appData);
         updateSyncStatus('Synchronisé');
-        console.log('[IAN] Data saved successfully to Firestore');
+        console.log('[IAN] Data saved successfully to MongoDB');
     } catch (error) {
         console.error('[IAN] Error saving data:', error);
         updateSyncStatus('Erreur de synchronisation');
@@ -1272,30 +1272,26 @@ function deleteContact(index) {
 window.addEventListener('DOMContentLoaded', async () => {
     console.log('[IAN] DOM loaded, checking authentication...');
 
-    // Initialiser Firebase
+    // Initialiser l'API Service
     await firestoreService.initialize();
 
-    // Firebase Auth persiste automatiquement l'authentification
-    // L'utilisateur sera automatiquement reconnecté s'il était connecté
-    // On attend un peu pour laisser le temps à onAuthStateChanged de se déclencher
-    setTimeout(async () => {
-        const currentUser = firestoreService.getCurrentUser();
+    // Vérifier si l'utilisateur est déjà connecté (token dans localStorage)
+    const currentUser = firestoreService.getCurrentUser();
 
-        if (currentUser) {
-            console.log('[IAN] User already authenticated:', currentUser.email);
+    if (currentUser) {
+        console.log('[IAN] User already authenticated:', currentUser.email);
 
-            // Mettre à jour l'interface utilisateur
-            const displayName = firestoreService.getDisplayName();
-            document.getElementById('user-name').textContent = displayName;
+        // Mettre à jour l'interface utilisateur
+        const displayName = firestoreService.getDisplayName();
+        document.getElementById('user-name').textContent = displayName;
 
-            // Charger les données depuis Firestore
-            await loadDataFromFirestore();
+        // Charger les données depuis l'API
+        await loadDataFromFirestore();
 
-            // Afficher l'application
-            document.getElementById('login-screen').classList.remove('active');
-            document.getElementById('main-app').style.display = 'block';
-        } else {
-            console.log('[IAN] No user authenticated');
-        }
-    }, 500); // Attendre 500ms pour que Firebase Auth se synchronise
+        // Afficher l'application
+        document.getElementById('login-screen').classList.remove('active');
+        document.getElementById('main-app').style.display = 'block';
+    } else {
+        console.log('[IAN] No user authenticated');
+    }
 });

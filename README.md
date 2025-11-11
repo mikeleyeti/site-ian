@@ -1,51 +1,70 @@
 # IAN - Écosystème Interactif
 
-Application web pour les Interlocuteurs Académiques pour le Numérique de l'académie Orléans-Tours.  
+Application web pour les Interlocuteurs Académiques pour le Numérique de l'académie Orléans-Tours.
 Développé par la DRANE d'Orléans-Tours
+
+## 🚀 MIGRATION VERS MONGODB
+
+**Cette application a été migrée de Firebase/Firestore vers MongoDB hébergé sur VPS OVH.**
+
+👉 **[Consultez le guide de migration complet](./README-MIGRATION.md)** pour :
+- Installer MongoDB sur votre VPS OVH
+- Configurer le backend Node.js
+- Migrer vos données existantes
+- Déployer en production
 
 ## Structure du Projet
 
 ```
 site-ian/
-├── index.html              # Point d'entrée principal avec SDK Firebase
-├── styles.css              # Tous les styles CSS
-├── app.js                  # Logique applicative principale
-├── firebase-service.js     # Service Firestore (remplace GitHubService)
-├── components.js           # Chargeur de composants HTML
-├── components/             # Composants HTML modulaires
-│   ├── login.html          # Écran de connexion GitHub
-│   ├── sync-bar.html       # Barre de synchronisation
-│   ├── home.html           # Page d'accueil
-│   ├── ecosystem.html      # Page arborescence écosystème
-│   ├── directory.html      # Page annuaire des IAN
-│   ├── newsletter.html     # Page newsletters
-│   └── usages.html         # Page usages du numérique
-├── firestore.rules         # Règles de sécurité Firestore
-├── FIREBASE_SETUP.md       # Instructions de configuration Firebase
-└── README.md               # Ce fichier
+├── index.html                  # Point d'entrée principal
+├── styles.css                  # Tous les styles CSS
+├── app.js                      # Logique applicative principale
+├── api-service.js              # Service API MongoDB (remplace firebase-service.js)
+├── components.js               # Chargeur de composants HTML
+├── components/                 # Composants HTML modulaires
+│   ├── login.html             # Écran de connexion
+│   ├── sync-bar.html          # Barre de synchronisation
+│   ├── home.html              # Page d'accueil
+│   ├── ecosystem.html         # Page arborescence écosystème
+│   ├── directory.html         # Page annuaire des IAN
+│   ├── newsletter.html        # Page newsletters
+│   └── usages.html            # Page usages du numérique
+├── server/                     # Backend Node.js + Express
+│   ├── server.js              # Point d'entrée du serveur
+│   ├── config/                # Configuration (database)
+│   ├── routes/                # Routes API (auth, user, directory)
+│   ├── middleware/            # Middleware (authentification JWT)
+│   ├── .env                   # Variables d'environnement (à configurer)
+│   ├── .env.example           # Exemple de configuration
+│   ├── package.json           # Dépendances backend
+│   └── migrate-firestore-to-mongodb.js  # Script de migration
+├── README.md                   # Ce fichier
+└── README-MIGRATION.md         # Guide de migration détaillé
 
 ```
 
 ## Fonctionnalités
 
-- **Authentification Firebase** : Connexion/Inscription sécurisée avec Email et Mot de passe
-- **Synchronisation des données** : Stockage dans **Cloud Firestore** (Firebase)
+- **Authentification JWT** : Connexion/Inscription sécurisée avec Email et Mot de passe
+- **Synchronisation des données** : Stockage dans **MongoDB** (VPS OVH)
 - **Gestion de profil** : Profil IAN personnalisable et public
 - **Annuaire public collaboratif** : Tous les profils IAN visibles par tous les utilisateurs authentifiés
 - **Newsletters** : Création et gestion de newsletters trimestrielles
 - **Usages pédagogiques** : Pratiques numériques par discipline
+- **Gestion des contacts** : Système de priorisation et filtrage des contacts professionnels
 
-### Système de stockage Firebase
+### Système de stockage MongoDB
 
-L'application utilise **Cloud Firestore** avec deux collections :
-1. **Collection `users`** : Contient les données privées de chaque utilisateur (profil complet avec notes)
-2. **Collection `public_directory`** : Contient les profils publics (sans les notes privées)
+L'application utilise **MongoDB** avec deux collections :
+1. **Collection `users`** : Contient les données privées de chaque utilisateur (profil complet avec notes, contacts, etc.)
+2. **Collection `public_profiles`** : Contient les profils publics (sans les notes privées)
 
 Chaque utilisateur :
 - Gère son propre profil dans la page "Arborescence de l'écosystème"
 - Voit tous les profils des autres IAN dans la page "Annuaire des IAN"
-- Son profil public est automatiquement synchronisé dans Firestore
-- L'annuaire charge tous les profils depuis la collection `public_directory`
+- Son profil public est automatiquement synchronisé via l'API backend
+- L'annuaire charge tous les profils depuis la collection `public_profiles`
 
 ## Architecture
 
@@ -65,23 +84,43 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 
 ### Gestion des données
 
-- **Service Firebase** : Classe `FirestoreService` pour interagir avec Cloud Firestore
-- **Authentification** : Token GitHub pour identifier l'utilisateur
-- **Stockage local** : Utilisation de `localStorage` pour les credentials
-- **Synchronisation** : Sauvegarde automatique dans Cloud Firestore
+- **Backend API** : Node.js + Express avec MongoDB
+- **Service API** : Classe `ApiService` pour communiquer avec le backend
+- **Authentification** : Tokens JWT pour identifier l'utilisateur
+- **Stockage local** : Utilisation de `localStorage` pour le token JWT
+- **Synchronisation** : Sauvegarde automatique via API REST vers MongoDB
 
 ## Installation et Utilisation
 
-### Configuration Firebase
+### Configuration (Backend + MongoDB)
 
-**⚠️ Important** : Avant d'utiliser l'application, vous devez configurer Firebase :
+**⚠️ Important** : Consultez le **[Guide de migration complet](./README-MIGRATION.md)** pour :
 
-1. **Voir le fichier [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md)** pour les instructions détaillées
-2. **Configurer les règles de sécurité Firestore** dans la console Firebase
+1. **Installer MongoDB** sur votre VPS OVH
+2. **Configurer le backend** Node.js
+3. **Migrer vos données** depuis Firestore (optionnel)
+4. **Déployer en production** avec Nginx et PM2
 
-### Utilisation
+### Démarrage rapide (développement)
 
-1. **Ouvrir `index.html`** dans un navigateur web
+#### 1. Backend
+```bash
+cd server
+npm install
+cp .env.example .env
+# Éditez .env avec vos configurations MongoDB
+npm run dev
+```
+
+#### 2. Frontend
+```bash
+# Serveur HTTP simple
+npx http-server -p 8080
+```
+
+#### 3. Utilisation
+
+1. **Ouvrir http://localhost:8080** dans un navigateur web
 2. **Créer un compte** (onglet "Inscription") avec votre email et un mot de passe
 3. **Ou se connecter** si vous avez déjà un compte (onglet "Connexion")
 4. **Compléter votre profil** dans la page "Arborescence de l'écosystème"
@@ -89,12 +128,12 @@ Les composants HTML sont chargés dynamiquement au démarrage de l'application v
 
 ### Synchronisation automatique
 
-Les données sont automatiquement synchronisées dans **Cloud Firestore** :
+Les données sont automatiquement synchronisées dans **MongoDB** :
 - **Données personnelles** (incluant notes privées) → Collection `users`
-- **Profil public** (nom, prénom, discipline, département, etc.) → Collection `public_directory`
-- **Annuaire** → Charge automatiquement tous les profils depuis `public_directory`
+- **Profil public** (nom, prénom, discipline, département, etc.) → Collection `public_profiles`
+- **Annuaire** → Charge automatiquement tous les profils depuis `public_profiles`
 
-Tout se synchronise automatiquement à chaque modification !
+Tout se synchronise automatiquement à chaque modification via l'API REST !
 
 ## Développement
 
@@ -114,24 +153,31 @@ Tout se synchronise automatiquement à chaque modification !
 
 ## Technologies utilisées
 
+### Frontend
 - **HTML5** : Structure sémantique
 - **CSS3** : Styles et animations
 - **JavaScript ES6+** : Logique applicative moderne
 - **Tailwind CSS** : Framework CSS utility-first
-- **Firebase Authentication** : Authentification Email/Password
-- **Cloud Firestore** : Base de données NoSQL temps réel
-- **Fetch API** : Chargement dynamique des composants
+- **Fetch API** : Communication avec l'API backend
+
+### Backend
+- **Node.js** : Runtime JavaScript serveur
+- **Express** : Framework web minimaliste
+- **MongoDB** : Base de données NoSQL
+- **JWT** : Authentification par tokens
+- **bcryptjs** : Hashage sécurisé des mots de passe
 
 ## Sécurité et Confidentialité
 
-- 🔐 **Authentification sécurisée** : Firebase Authentication avec Email/Password
+- 🔐 **Authentification sécurisée** : JWT avec bcrypt pour le hashage des mots de passe
 - 🔒 **Données privées protégées** : Seul vous avez accès à vos données personnelles (notes, etc.)
 - 👥 **Annuaire public** : Votre profil IAN (nom, prénom, discipline, département, mail académique, objectifs) est visible par tous les utilisateurs authentifiés
 - ⚠️ **Ne saisissez que des informations professionnelles** que vous acceptez de partager dans votre profil public
-- 🛡️ **Règles de sécurité Firestore** : Basées sur `request.auth.uid` pour protéger vos données
-- ☁️ **Base de données centralisée** : Firebase (Google Cloud) héberge toutes les données
-- 💰 **Gratuit** : L'offre Firebase Spark (gratuite) est largement suffisante pour votre usage
+- 🛡️ **API sécurisée** : Middleware d'authentification JWT pour protéger les routes
+- 🏠 **Hébergement autonome** : MongoDB sur votre propre VPS OVH
+- 💰 **Coût fixe** : Contrôle total des coûts avec votre VPS
 - 🔄 **Persistance automatique** : Vous restez connecté même après fermeture du navigateur
+- 🔑 **Contrôle total** : Vous êtes propriétaire de vos données et de votre infrastructure
 
 ## Licence
 
