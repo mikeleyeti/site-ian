@@ -1,0 +1,46 @@
+services:
+  # CouchDB - Base de données NoSQL (remplace MongoDB)
+  couchdb:
+    image: couchdb:3.3
+    container_name: couchdb
+    restart: always
+    environment:
+      # Credentials admin
+      COUCHDB_USER: ${COUCHDB_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:-changeme123}
+
+      # Secret pour les cookies de session (IMPORTANT: changez cette valeur)
+      COUCHDB_SECRET: ${COUCHDB_SECRET:-changez_cette_valeur_par_quelque_chose_de_tres_aleatoire_123456789}
+
+      # ========== CONFIGURATION CRITIQUE POUR AUTO-INSCRIPTION ==========
+      # Permet aux utilisateurs de s'inscrire sans credentials admin
+      COUCHDB_CONFIG_CHTTPD_REQUIRE_VALID_USER: "false"
+      COUCHDB_CONFIG_COUCH_HTTPD_AUTH_REQUIRE_VALID_USER: "false"
+
+      # ========== CONFIGURATION CORS ==========
+      # Nécessaire pour l'accès depuis le navigateur
+      COUCHDB_CONFIG_HTTPD_ENABLE_CORS: "true"
+      COUCHDB_CONFIG_CORS_ORIGINS: "*"
+      COUCHDB_CONFIG_CORS_CREDENTIALS: "true"
+      COUCHDB_CONFIG_CORS_METHODS: "GET, PUT, POST, HEAD, DELETE"
+      COUCHDB_CONFIG_CORS_HEADERS: "accept, authorization, content-type, origin, referer, x-requested-with"
+
+    ports:
+      - "5984:5984"  # Interface Web Fauxton + API
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+      - couchdb_config:/opt/couchdb/etc/local.d
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  couchdb_data:
+  couchdb_config:
+
+networks:
+  app_network:
