@@ -107,30 +107,8 @@ function initLoginForm() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span>Connexion en cours...</span>';
 
-        // Initialiser CouchDB (demander les credentials admin si nécessaire)
-        const savedCredentials = localStorage.getItem('couchdb_admin_credentials');
-        let adminCredentials;
-
-        if (savedCredentials) {
-            adminCredentials = JSON.parse(savedCredentials);
-        } else {
-            // Demander les credentials admin pour CouchDB
-            const adminUsername = prompt('Nom d\'utilisateur administrateur CouchDB:', 'admin');
-            const adminPassword = prompt('Mot de passe administrateur CouchDB:');
-
-            if (!adminUsername || !adminPassword) {
-                errorDiv.textContent = 'Identifiants administrateur requis';
-                errorDiv.classList.remove('hidden');
-                submitButton.disabled = false;
-                submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Se connecter</span><span>→</span></span>';
-                return;
-            }
-
-            adminCredentials = { username: adminUsername, password: adminPassword };
-            localStorage.setItem('couchdb_admin_credentials', JSON.stringify(adminCredentials));
-        }
-
-        await couchDBService.initialize(window.couchDBConfig.url, adminCredentials.username, adminCredentials.password);
+        // Initialiser CouchDB (plus besoin des credentials admin)
+        await couchDBService.initialize(window.couchDBConfig.url);
 
         // Connexion
         const result = await couchDBService.signIn(email, password);
@@ -184,30 +162,8 @@ function initLoginForm() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span>Création du compte...</span>';
 
-        // Initialiser CouchDB (demander les credentials admin si nécessaire)
-        const savedCredentials = localStorage.getItem('couchdb_admin_credentials');
-        let adminCredentials;
-
-        if (savedCredentials) {
-            adminCredentials = JSON.parse(savedCredentials);
-        } else {
-            // Demander les credentials admin pour CouchDB
-            const adminUsername = prompt('Nom d\'utilisateur administrateur CouchDB:', 'admin');
-            const adminPassword = prompt('Mot de passe administrateur CouchDB:');
-
-            if (!adminUsername || !adminPassword) {
-                errorDiv.textContent = 'Identifiants administrateur requis';
-                errorDiv.classList.remove('hidden');
-                submitButton.disabled = false;
-                submitButton.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>Créer un compte</span><span>→</span></span>';
-                return;
-            }
-
-            adminCredentials = { username: adminUsername, password: adminPassword };
-            localStorage.setItem('couchdb_admin_credentials', JSON.stringify(adminCredentials));
-        }
-
-        await couchDBService.initialize(window.couchDBConfig.url, adminCredentials.username, adminCredentials.password);
+        // Initialiser CouchDB (plus besoin des credentials admin)
+        await couchDBService.initialize(window.couchDBConfig.url);
 
         // Inscription
         const result = await couchDBService.signUp(email, password, name);
@@ -1316,40 +1272,31 @@ function deleteContact(index) {
 window.addEventListener('DOMContentLoaded', async () => {
     console.log('[IAN] DOM loaded, checking authentication...');
 
-    // Vérifier si des credentials admin sont sauvegardés
-    const savedCredentials = localStorage.getItem('couchdb_admin_credentials');
+    // Initialiser CouchDB
+    try {
+        await couchDBService.initialize(window.couchDBConfig.url);
 
-    if (savedCredentials) {
-        try {
-            const adminCredentials = JSON.parse(savedCredentials);
-            await couchDBService.initialize(window.couchDBConfig.url, adminCredentials.username, adminCredentials.password);
+        // Tenter de restaurer la session utilisateur
+        const restored = await couchDBService.restoreSession();
 
-            // Tenter de restaurer la session utilisateur
-            const restored = await couchDBService.restoreSession();
+        if (restored) {
+            const currentUser = couchDBService.getCurrentUser();
+            console.log('[IAN] User session restored:', currentUser.email);
 
-            if (restored) {
-                const currentUser = couchDBService.getCurrentUser();
-                console.log('[IAN] User session restored:', currentUser.email);
+            // Mettre à jour l'interface utilisateur
+            const displayName = couchDBService.getDisplayName();
+            document.getElementById('user-name').textContent = displayName;
 
-                // Mettre à jour l'interface utilisateur
-                const displayName = couchDBService.getDisplayName();
-                document.getElementById('user-name').textContent = displayName;
+            // Charger les données depuis CouchDB
+            await loadDataFromCouchDB();
 
-                // Charger les données depuis CouchDB
-                await loadDataFromCouchDB();
-
-                // Afficher l'application
-                document.getElementById('login-screen').classList.remove('active');
-                document.getElementById('main-app').style.display = 'block';
-            } else {
-                console.log('[IAN] No user session to restore');
-            }
-        } catch (error) {
-            console.error('[IAN] Error restoring session:', error);
-            // Supprimer les credentials invalides
-            localStorage.removeItem('couchdb_admin_credentials');
+            // Afficher l'application
+            document.getElementById('login-screen').classList.remove('active');
+            document.getElementById('main-app').style.display = 'block';
+        } else {
+            console.log('[IAN] No user session to restore');
         }
-    } else {
-        console.log('[IAN] No admin credentials saved');
+    } catch (error) {
+        console.error('[IAN] Error during initialization:', error);
     }
 });

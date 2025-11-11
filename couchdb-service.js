@@ -12,34 +12,13 @@ class CouchDBService {
         this.currentUser = null;
         this.initialized = false;
         this.couchDBUrl = null;
-        this.couchDBCredentials = null; // Credentials admin
-        this.userCredentials = null; // Credentials utilisateur pour sync
     }
 
     // Initialisation du service avec PouchDB et CouchDB
-    async initialize(couchDBUrl, username, password) {
+    async initialize(couchDBUrl) {
         try {
             console.log('[CouchDB] Initializing service...');
-
             this.couchDBUrl = couchDBUrl;
-            this.couchDBCredentials = { username, password };
-
-            // Vérifier la connexion au CouchDB distant
-            const testUrl = `${couchDBUrl}/_session`;
-            const response = await fetch(testUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Basic ' + btoa(`${username}:${password}`)
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Impossible de se connecter au CouchDB. Vérifiez l\'URL et les identifiants.');
-            }
-
-            const sessionData = await response.json();
-            console.log('[CouchDB] Connexion réussie:', sessionData);
-
             this.initialized = true;
             return true;
         } catch (error) {
@@ -61,146 +40,14 @@ class CouchDBService {
             this.publicDB = new PouchDB('ian_public');
             console.log('[CouchDB] Public local DB created');
 
-            // Auth admin pour créer les bases
-            const adminAuth = `${this.couchDBCredentials.username}:${this.couchDBCredentials.password}`;
-
-            // Auth utilisateur pour la synchronisation
+            // Auth utilisateur pour la synchronisation et création de bases
             const userAuth = `${userId}:${userPassword}`;
-            console.log('[CouchDB] Using user auth for sync:', userId);
+            console.log('[CouchDB] Using user credentials:', userId);
 
-            // Créer la base distante si elle n'existe pas
+            // La base distante sera créée automatiquement par PouchDB
+            // grâce à la config CouchDB qui permet aux users de créer des bases
             const remoteDbName = `ian_user_${userId}`;
-            try {
-                const createResponse = await fetch(`${this.couchDBUrl}/${remoteDbName}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': 'Basic ' + btoa(adminAuth)
-                    }
-                });
-
-                if (createResponse.ok) {
-                    console.log('[CouchDB] Remote database created:', remoteDbName);
-
-                    // Configurer les permissions de la base pour cet utilisateur
-                    const securityDoc = {
-                        admins: {
-                            names: [],
-                            roles: []
-                        },
-                        members: {
-                            names: [userId], // L'utilisateur peut lire/écrire dans sa propre base
-                            roles: []
-                        }
-                    };
-
-                    const securityResponse = await fetch(`${this.couchDBUrl}/${remoteDbName}/_security`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Basic ' + btoa(adminAuth)
-                        },
-                        body: JSON.stringify(securityDoc)
-                    });
-
-                    if (securityResponse.ok) {
-                        console.log('[CouchDB] Security configured for user database');
-                    } else {
-                        console.warn('[CouchDB] Could not configure security:', await securityResponse.text());
-                    }
-                } else {
-                    const result = await createResponse.json();
-                    if (result.error === 'file_exists') {
-                        console.log('[CouchDB] Remote database already exists:', remoteDbName);
-
-                        // Mettre à jour les permissions au cas où
-                        const securityDoc = {
-                            admins: {
-                                names: [],
-                                roles: []
-                            },
-                            members: {
-                                names: [userId],
-                                roles: []
-                            }
-                        };
-
-                        await fetch(`${this.couchDBUrl}/${remoteDbName}/_security`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Basic ' + btoa(adminAuth)
-                            },
-                            body: JSON.stringify(securityDoc)
-                        });
-                    } else {
-                        console.warn('[CouchDB] Could not create remote DB:', result);
-                    }
-                }
-            } catch (err) {
-                console.error('[CouchDB] Error creating remote DB:', err);
-            }
-
-            // Créer la base publique distante si elle n'existe pas
-            try {
-                const createPublicResponse = await fetch(`${this.couchDBUrl}/ian_public`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': 'Basic ' + btoa(adminAuth)
-                    }
-                });
-
-                if (createPublicResponse.ok) {
-                    console.log('[CouchDB] Remote public database created');
-                } else {
-                    const result = await createPublicResponse.json();
-                    if (result.error === 'file_exists') {
-                        console.log('[CouchDB] Remote public database already exists');
-                    } else {
-                        console.warn('[CouchDB] Could not create remote public DB:', result);
-                    }
-                }
-
-                // Récupérer la configuration de sécurité actuelle
-                const getSecurityResponse = await fetch(`${this.couchDBUrl}/ian_public/_security`, {
-                    headers: {
-                        'Authorization': 'Basic ' + btoa(adminAuth)
-                    }
-                });
-
-                let currentSecurity = {
-                    admins: { names: [], roles: [] },
-                    members: { names: [], roles: [] }
-                };
-
-                if (getSecurityResponse.ok) {
-                    currentSecurity = await getSecurityResponse.json();
-                }
-
-                // Ajouter l'utilisateur actuel s'il n'est pas déjà dans la liste
-                if (!currentSecurity.members.names.includes(userId)) {
-                    currentSecurity.members.names.push(userId);
-                    console.log('[CouchDB] Adding user to public database members:', userId);
-
-                    const updateSecurityResponse = await fetch(`${this.couchDBUrl}/ian_public/_security`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Basic ' + btoa(adminAuth)
-                        },
-                        body: JSON.stringify(currentSecurity)
-                    });
-
-                    if (updateSecurityResponse.ok) {
-                        console.log('[CouchDB] User added to public database members');
-                    } else {
-                        console.warn('[CouchDB] Could not update public security:', await updateSecurityResponse.text());
-                    }
-                } else {
-                    console.log('[CouchDB] User already has access to public database');
-                }
-            } catch (err) {
-                console.error('[CouchDB] Error creating/configuring remote public DB:', err);
-            }
+            console.log('[CouchDB] User database will be auto-created:', remoteDbName);
 
             // Connecter aux bases distantes avec les credentials UTILISATEUR
             this.remoteDB = new PouchDB(`${this.couchDBUrl}/${remoteDbName}`, {
@@ -262,20 +109,21 @@ class CouchDBService {
         try {
             console.log('[CouchDB] Creating user:', email);
 
-            // Créer l'utilisateur dans CouchDB
-            const auth = `${this.couchDBCredentials.username}:${this.couchDBCredentials.password}`;
+            const username = email.replace(/[@.]/g, '_');
+
+            // Créer l'utilisateur dans CouchDB (auto-inscription)
             const userDoc = {
-                name: email.replace(/[@.]/g, '_'),
+                _id: `org.couchdb.user:${username}`,
+                name: username,
                 password: password,
-                roles: ['user'],
+                roles: [],
                 type: 'user'
             };
 
-            const response = await fetch(`${this.couchDBUrl}/_users/org.couchdb.user:${userDoc.name}`, {
+            const response = await fetch(`${this.couchDBUrl}/_users/${userDoc._id}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Basic ' + btoa(auth)
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(userDoc)
             });
@@ -285,10 +133,10 @@ class CouchDBService {
                 throw new Error(error.reason || 'Erreur lors de la création du compte');
             }
 
+            console.log('[CouchDB] User created successfully');
+
             // Connexion automatique après inscription
             const result = await this.signIn(email, password, displayName);
-
-            // Si l'inscription a réussi, le password est déjà stocké dans signIn
             return result;
         } catch (error) {
             console.error('[CouchDB] Erreur lors de l\'inscription:', error);
