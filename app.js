@@ -1,5 +1,5 @@
 // IAN - Écosystème Interactif - Application JavaScript
-// Utilise FirestoreService (défini dans firebase-service.js) pour le stockage des données
+// Utilise SupabaseService (défini dans supabase-service.js) pour le stockage des données
 
 // Structure de données globale
 let appData = {
@@ -108,10 +108,10 @@ function initLoginForm() {
         submitButton.innerHTML = '<span>Connexion en cours...</span>';
 
         // Initialiser Firebase
-        await firestoreService.initialize();
+        await supabaseService.initialize();
 
         // Connexion
-        const result = await firestoreService.signIn(email, password);
+        const result = await supabaseService.signIn(email, password);
 
         if (result.success) {
             console.log('[IAN] Login successful');
@@ -163,10 +163,10 @@ function initLoginForm() {
         submitButton.innerHTML = '<span>Création du compte...</span>';
 
         // Initialiser Firebase
-        await firestoreService.initialize();
+        await supabaseService.initialize();
 
         // Inscription
-        const result = await firestoreService.signUp(email, password, name);
+        const result = await supabaseService.signUp(email, password, name);
 
         if (result.success) {
             console.log('[IAN] Signup successful');
@@ -175,7 +175,7 @@ function initLoginForm() {
             document.getElementById('user-name').textContent = result.user.displayName;
 
             // Créer les données initiales
-            await firestoreService.saveUserData(appData);
+            await supabaseService.saveUserData(appData);
 
             // Afficher l'application principale
             document.getElementById('login-screen').classList.remove('active');
@@ -233,14 +233,14 @@ async function loadDataFromFirestore() {
 
     try {
         // Récupérer les données de l'utilisateur depuis Firestore
-        const data = await firestoreService.getUserData();
+        const data = await supabaseService.getUserData();
 
         if (data) {
             // Fusionner avec les données par défaut
             appData = { ...appData, ...data };
         } else {
             // Première connexion : créer les données initiales
-            await firestoreService.saveUserData(appData);
+            await supabaseService.saveUserData(appData);
         }
 
         updateSyncStatus('Synchronisé');
@@ -252,7 +252,7 @@ async function loadDataFromFirestore() {
 
 // Sauvegarde des données vers Firestore
 async function saveDataToFirestore() {
-    if (!firestoreService.initialized || !firestoreService.currentUser) {
+    if (!supabaseService.initialized || !supabaseService.currentUser) {
         console.warn('[IAN] Cannot save: Service not initialized or user not authenticated');
         return;
     }
@@ -261,7 +261,7 @@ async function saveDataToFirestore() {
 
     try {
         appData.lastUpdated = new Date().toISOString();
-        await firestoreService.saveUserData(appData);
+        await supabaseService.saveUserData(appData);
         updateSyncStatus('Synchronisé');
         console.log('[IAN] Data saved successfully to Firestore');
     } catch (error) {
@@ -284,7 +284,7 @@ function updateSyncStatus(status) {
 // Déconnexion
 async function logout() {
     if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        await firestoreService.signOutUser();
+        await supabaseService.signOutUser();
         location.reload();
     }
 }
@@ -784,7 +784,7 @@ async function loadAllProfiles() {
     const profilesList = document.getElementById('profiles-list');
 
     try {
-        const profiles = await firestoreService.getSharedProfiles();
+        const profiles = await supabaseService.getSharedProfiles();
 
         if (profiles.length === 0) {
             profilesList.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucun profil dans l\'annuaire. Soyez le premier à créer votre profil!</p>';
@@ -1241,7 +1241,7 @@ async function updateProfile(field, value) {
     appData.ianProfile[field] = value;
 
     // Sauvegarder dans Firestore (données privées + profil public)
-    await firestoreService.updateProfileField(field, value);
+    await supabaseService.updateProfileField(field, value);
 }
 
 function addContact() {
@@ -1273,19 +1273,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.log('[IAN] DOM loaded, checking authentication...');
 
     // Initialiser Firebase
-    await firestoreService.initialize();
+    await supabaseService.initialize();
 
     // Firebase Auth persiste automatiquement l'authentification
     // L'utilisateur sera automatiquement reconnecté s'il était connecté
     // On attend un peu pour laisser le temps à onAuthStateChanged de se déclencher
     setTimeout(async () => {
-        const currentUser = firestoreService.getCurrentUser();
+        const currentUser = supabaseService.getCurrentUser();
 
         if (currentUser) {
             console.log('[IAN] User already authenticated:', currentUser.email);
 
             // Mettre à jour l'interface utilisateur
-            const displayName = firestoreService.getDisplayName();
+            const displayName = supabaseService.getDisplayName();
             document.getElementById('user-name').textContent = displayName;
 
             // Charger les données depuis Firestore
