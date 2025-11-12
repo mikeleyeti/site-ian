@@ -153,17 +153,11 @@ CREATE TRIGGER update_public_directory_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
--- 5. FONCTION OPTIONNELLE (NON UTILISÉE)
+-- 5. FONCTION POUR CRÉER LES PROFILS UTILISATEUR
 -- ============================================
 
--- Note: La création des profils utilisateur est gérée directement
--- dans le code JavaScript (supabase-service.js) après l'inscription.
--- Cela évite les conflits avec les politiques RLS et donne plus de contrôle.
-
--- Si vous souhaitez quand même utiliser un trigger automatique,
--- décommentez le code ci-dessous :
-
-/*
+-- Cette fonction est appelée automatiquement après l'inscription
+-- Elle utilise SECURITY DEFINER pour contourner les politiques RLS
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -185,7 +179,7 @@ BEGIN
     VALUES (
         NEW.id,
         NEW.id,
-        NEW.raw_user_meta_data->>'display_name',
+        COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1)),
         NEW.email,
         NOW()
     );
@@ -194,12 +188,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Créer le trigger
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_new_user();
-*/
 
 -- ============================================
 -- SETUP COMPLETE

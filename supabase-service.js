@@ -88,7 +88,8 @@ class SupabaseService {
                 options: {
                     data: {
                         display_name: displayName || email.split('@')[0]
-                    }
+                    },
+                    emailRedirectTo: window.location.origin
                 }
             });
 
@@ -99,48 +100,17 @@ class SupabaseService {
             }
 
             this.currentUser = data.user;
-            const userId = data.user.id;
             const finalDisplayName = displayName || email.split('@')[0];
 
-            // Créer l'entrée dans la table users
-            const { error: usersError } = await this.supabase
-                .from('users')
-                .insert({
-                    id: userId,
-                    ian_profile: {},
-                    directory_profiles: [],
-                    newsletters: [],
-                    actualites: [],
-                    usages: [],
-                    contacts: [],
-                    last_updated: new Date().toISOString()
-                });
+            // Note: Les profils sont créés automatiquement par le trigger PostgreSQL
+            // (handle_new_user) qui s'exécute avec SECURITY DEFINER
 
-            if (usersError) {
-                console.error('Erreur lors de la création du profil utilisateur:', usersError);
-                // Ne pas bloquer l'inscription si la création échoue
-            }
-
-            // Créer l'entrée dans la table public_directory
-            const { error: publicError } = await this.supabase
-                .from('public_directory')
-                .insert({
-                    id: userId,
-                    user_id: userId,
-                    display_name: finalDisplayName,
-                    email: email,
-                    last_updated: new Date().toISOString()
-                });
-
-            if (publicError) {
-                console.error('Erreur lors de la création du profil public:', publicError);
-                // Ne pas bloquer l'inscription si la création échoue
-            }
+            console.log('[Supabase] Inscription réussie, profils créés automatiquement');
 
             return {
                 success: true,
                 user: {
-                    uid: userId,
+                    uid: data.user.id,
                     email: data.user.email,
                     displayName: finalDisplayName
                 }
@@ -151,10 +121,10 @@ class SupabaseService {
             // Messages d'erreur en français
             let errorMessage = 'Erreur lors de l\'inscription';
 
-            if (error.message.includes('already registered')) {
+            if (error.message.includes('already registered') || error.message.includes('User already registered')) {
                 errorMessage = 'Cette adresse email est déjà utilisée';
-            } else if (error.message.includes('invalid email')) {
-                errorMessage = 'Adresse email invalide';
+            } else if (error.message.includes('invalid') && error.message.includes('email')) {
+                errorMessage = 'Adresse email invalide. Vérifiez votre configuration Supabase (Authentication > Settings).';
             } else if (error.message.includes('password')) {
                 errorMessage = 'Le mot de passe doit contenir au moins 6 caractères';
             } else {
