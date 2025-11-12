@@ -94,14 +94,55 @@ class SupabaseService {
 
             if (error) throw error;
 
+            if (!data.user) {
+                throw new Error('Aucun utilisateur retourné après l\'inscription');
+            }
+
             this.currentUser = data.user;
+            const userId = data.user.id;
+            const finalDisplayName = displayName || email.split('@')[0];
+
+            // Créer l'entrée dans la table users
+            const { error: usersError } = await this.supabase
+                .from('users')
+                .insert({
+                    id: userId,
+                    ian_profile: {},
+                    directory_profiles: [],
+                    newsletters: [],
+                    actualites: [],
+                    usages: [],
+                    contacts: [],
+                    last_updated: new Date().toISOString()
+                });
+
+            if (usersError) {
+                console.error('Erreur lors de la création du profil utilisateur:', usersError);
+                // Ne pas bloquer l'inscription si la création échoue
+            }
+
+            // Créer l'entrée dans la table public_directory
+            const { error: publicError } = await this.supabase
+                .from('public_directory')
+                .insert({
+                    id: userId,
+                    user_id: userId,
+                    display_name: finalDisplayName,
+                    email: email,
+                    last_updated: new Date().toISOString()
+                });
+
+            if (publicError) {
+                console.error('Erreur lors de la création du profil public:', publicError);
+                // Ne pas bloquer l'inscription si la création échoue
+            }
 
             return {
                 success: true,
                 user: {
-                    uid: data.user.id,
+                    uid: userId,
                     email: data.user.email,
-                    displayName: displayName || email.split('@')[0]
+                    displayName: finalDisplayName
                 }
             };
         } catch (error) {
