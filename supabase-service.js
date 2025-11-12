@@ -56,8 +56,8 @@ class SupabaseService {
         if (!this.supabase) return;
 
         // Supprimer l'ancien listener s'il existe
-        if (this.authListener) {
-            this.authListener.subscription.unsubscribe();
+        if (this.authListener && this.authListener.data && this.authListener.data.subscription) {
+            this.authListener.data.subscription.unsubscribe();
         }
 
         // Créer un nouveau listener
