@@ -227,19 +227,44 @@
             </div>
 
             <!-- Filtres par priorité -->
-            <div class="mb-6 flex flex-wrap gap-2">
-                <button onclick="filterActualites('all')" class="actualites-filter-btn active px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="all">
-                    Toutes
-                </button>
-                <button onclick="filterActualites('haute')" class="actualites-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="haute">
-                    🔴 Priorité haute
-                </button>
-                <button onclick="filterActualites('moyenne')" class="actualites-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="moyenne">
-                    🟡 Priorité moyenne
-                </button>
-                <button onclick="filterActualites('basse')" class="actualites-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="basse">
-                    🟢 Priorité basse
-                </button>
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Filtrer par priorité</h3>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterActualitesByPriority('all')" class="actualites-priority-btn active px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="all">
+                        Toutes
+                    </button>
+                    <button onclick="filterActualitesByPriority('haute')" class="actualites-priority-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="haute">
+                        🔴 Haute
+                    </button>
+                    <button onclick="filterActualitesByPriority('moyenne')" class="actualites-priority-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="moyenne">
+                        🟡 Moyenne
+                    </button>
+                    <button onclick="filterActualitesByPriority('basse')" class="actualites-priority-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="basse">
+                        🟢 Basse
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtres par trimestre -->
+            <div class="mb-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Filtrer par trimestre</h3>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterActualitesByTrimester('all')" class="actualites-trimester-btn active px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="all">
+                        Tous les trimestres
+                    </button>
+                    <button onclick="filterActualitesByTrimester('Q1')" class="actualites-trimester-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="Q1">
+                        📆 T1 (Jan-Mar)
+                    </button>
+                    <button onclick="filterActualitesByTrimester('Q2')" class="actualites-trimester-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="Q2">
+                        📆 T2 (Avr-Juin)
+                    </button>
+                    <button onclick="filterActualitesByTrimester('Q3')" class="actualites-trimester-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="Q3">
+                        📆 T3 (Juil-Sep)
+                    </button>
+                    <button onclick="filterActualitesByTrimester('Q4')" class="actualites-trimester-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="Q4">
+                        📆 T4 (Oct-Déc)
+                    </button>
+                </div>
             </div>
 
             <!-- Liste -->

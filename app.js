@@ -1503,7 +1503,8 @@ function switchNewsletterTab(tab) {
 
 // ===== GESTION DES ACTUALITÉS =====
 
-let currentActualitesFilter = 'all';
+let currentActualitesPriorityFilter = 'all';
+let currentActualitesTrimesterFilter = 'all';
 
 async function handleActualiteSubmit(e) {
     e.preventDefault();
@@ -1554,8 +1555,16 @@ async function renderActualites() {
         let actualites = await supabaseService.getActualites();
 
         // Filtrer par priorité si nécessaire
-        if (currentActualitesFilter !== 'all') {
-            actualites = actualites.filter(a => a.priority === currentActualitesFilter);
+        if (currentActualitesPriorityFilter !== 'all') {
+            actualites = actualites.filter(a => a.priority === currentActualitesPriorityFilter);
+        }
+
+        // Filtrer par trimestre si nécessaire
+        if (currentActualitesTrimesterFilter !== 'all') {
+            actualites = actualites.filter(a => {
+                const trimester = getTrimesterFromDate(a.date);
+                return trimester === currentActualitesTrimesterFilter;
+            });
         }
 
         // Mettre à jour le compteur
@@ -1622,11 +1631,11 @@ async function renderActualites() {
     }
 }
 
-function filterActualites(filter) {
-    currentActualitesFilter = filter;
+function filterActualitesByPriority(filter) {
+    currentActualitesPriorityFilter = filter;
 
     // Mettre à jour les boutons de filtre
-    document.querySelectorAll('.actualites-filter-btn').forEach(btn => {
+    document.querySelectorAll('.actualites-priority-btn').forEach(btn => {
         btn.classList.remove('active', 'bg-teal-600', 'text-white');
         btn.classList.add('bg-gray-200', 'text-gray-700');
 
@@ -1637,6 +1646,33 @@ function filterActualites(filter) {
     });
 
     renderActualites();
+}
+
+function filterActualitesByTrimester(filter) {
+    currentActualitesTrimesterFilter = filter;
+
+    // Mettre à jour les boutons de filtre
+    document.querySelectorAll('.actualites-trimester-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-teal-600', 'text-white');
+        btn.classList.add('bg-gray-200', 'text-gray-700');
+
+        if (btn.dataset.filter === filter) {
+            btn.classList.add('active', 'bg-teal-600', 'text-white');
+            btn.classList.remove('bg-gray-200', 'text-gray-700');
+        }
+    });
+
+    renderActualites();
+}
+
+function getTrimesterFromDate(dateString) {
+    const date = new Date(dateString);
+    const month = date.getMonth() + 1; // 0-indexed, donc +1
+
+    if (month >= 1 && month <= 3) return 'Q1';
+    if (month >= 4 && month <= 6) return 'Q2';
+    if (month >= 7 && month <= 9) return 'Q3';
+    if (month >= 10 && month <= 12) return 'Q4';
 }
 
 async function deleteActualite(id) {

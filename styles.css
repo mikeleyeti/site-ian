@@ -227,17 +227,20 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Actualités Styles */
-.actualites-filter-btn {
+.actualites-priority-btn,
+.actualites-trimester-btn {
     background-color: #e5e7eb;
     color: #374151;
 }
 
-.actualites-filter-btn.active {
+.actualites-priority-btn.active,
+.actualites-trimester-btn.active {
     background-color: #0d9488;
     color: white;
 }
 
-.actualites-filter-btn:hover:not(.active) {
+.actualites-priority-btn:hover:not(.active),
+.actualites-trimester-btn:hover:not(.active) {
     background-color: #d1d5db;
 }
 
