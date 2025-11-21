@@ -460,6 +460,123 @@ class SupabaseService {
             throw error;
         }
     }
+
+    // ========== MÉTHODES POUR LES ÉVÉNEMENTS PUBLICS ==========
+
+    // Créer un événement public
+    async createPublicEvent(eventData) {
+        if (!this.initialized || !this.currentUser) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const userId = this.currentUser.id;
+            const displayName = this.getDisplayName();
+
+            const publicEvent = {
+                user_id: userId,
+                author_name: displayName,
+                author_email: this.currentUser.email,
+                type: eventData.type,
+                title: eventData.title,
+                date: eventData.date,
+                objective: eventData.objective,
+                description: eventData.description || null,
+                link: eventData.link || null
+            };
+
+            const { data, error } = await this.supabase
+                .from('public_events')
+                .insert(publicEvent)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('[Supabase] Événement public créé:', data);
+            return data;
+        } catch (error) {
+            console.error('Erreur lors de la création de l\'événement public:', error);
+            throw error;
+        }
+    }
+
+    // Récupérer tous les événements publics
+    async getPublicEvents() {
+        if (!this.initialized) {
+            throw new Error('Service non initialisé');
+        }
+
+        try {
+            const { data, error } = await this.supabase
+                .from('public_events')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (error) throw error;
+
+            console.log('[Supabase] Événements publics récupérés:', data?.length || 0);
+            return data || [];
+        } catch (error) {
+            console.error('Erreur lors de la récupération des événements publics:', error);
+            throw error;
+        }
+    }
+
+    // Supprimer un événement public (seulement ses propres événements)
+    async deletePublicEvent(eventId) {
+        if (!this.initialized || !this.currentUser) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const { error } = await this.supabase
+                .from('public_events')
+                .delete()
+                .eq('id', eventId)
+                .eq('user_id', this.currentUser.id); // Sécurité: seulement ses propres événements
+
+            if (error) throw error;
+
+            console.log('[Supabase] Événement public supprimé:', eventId);
+            return true;
+        } catch (error) {
+            console.error('Erreur lors de la suppression de l\'événement public:', error);
+            throw error;
+        }
+    }
+
+    // Mettre à jour un événement public
+    async updatePublicEvent(eventId, eventData) {
+        if (!this.initialized || !this.currentUser) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const { data, error } = await this.supabase
+                .from('public_events')
+                .update({
+                    type: eventData.type,
+                    title: eventData.title,
+                    date: eventData.date,
+                    objective: eventData.objective,
+                    description: eventData.description || null,
+                    link: eventData.link || null
+                })
+                .eq('id', eventId)
+                .eq('user_id', this.currentUser.id) // Sécurité: seulement ses propres événements
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('[Supabase] Événement public mis à jour:', data);
+            return data;
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour de l\'événement public:', error);
+            throw error;
+        }
+    }
 }
 
 // Instance globale
