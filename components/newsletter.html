@@ -10,9 +10,111 @@
             <h1 class="text-3xl font-bold text-white mb-2">Newsletter d'informations</h1>
             <p class="text-teal-100">Créez et partagez vos newsletters trimestrielles</p>
         </header>
-        <!-- Le contenu sera chargé depuis GitHub -->
-        <div id="newsletter-content" class="bg-white rounded-xl shadow-lg p-6">
-            <p class="text-gray-600">Chargement...</p>
+        <!-- Formulaire d'ajout d'événement -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Ajouter un événement</h2>
+            <form id="timeline-event-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Type d'événement -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            🏷️ Type d'événement *
+                        </label>
+                        <select id="event-type" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            <option value="">Sélectionnez un type</option>
+                            <option value="formation">📚 Formation</option>
+                            <option value="webinaire">💻 Webinaire</option>
+                            <option value="conference">🎤 Conférence</option>
+                            <option value="reunion">👥 Réunion</option>
+                            <option value="atelier">🛠️ Atelier</option>
+                            <option value="deadline">⏰ Date limite</option>
+                            <option value="publication">📰 Publication</option>
+                            <option value="autre">📌 Autre</option>
+                        </select>
+                    </div>
+
+                    <!-- Date -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            📅 Date *
+                        </label>
+                        <input type="date" id="event-date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <!-- Titre -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        📝 Titre *
+                    </label>
+                    <input type="text" id="event-title" required placeholder="Ex: Formation IA générative en classe" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                </div>
+
+                <!-- Objectif -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        🎯 Objectif *
+                    </label>
+                    <input type="text" id="event-objective" required placeholder="Ex: Former 20 enseignants aux outils IA" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                </div>
+
+                <!-- Description complémentaire -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        📋 Description complémentaire
+                    </label>
+                    <textarea id="event-description" rows="3" placeholder="Informations complémentaires sur l'événement..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"></textarea>
+                </div>
+
+                <!-- Lien utile -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        🔗 Lien utile
+                    </label>
+                    <input type="url" id="event-link" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                </div>
+
+                <!-- Bouton soumettre -->
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition-colors font-medium">
+                        ➕ Ajouter l'événement
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Frise chronologique -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Frise chronologique</h2>
+                <div class="text-sm text-gray-500">
+                    <span id="event-count">0</span> événement(s)
+                </div>
+            </div>
+
+            <!-- Filtres -->
+            <div class="mb-6 flex flex-wrap gap-2">
+                <button onclick="filterTimelineEvents('all')" class="timeline-filter-btn active px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="all">
+                    Tous
+                </button>
+                <button onclick="filterTimelineEvents('formation')" class="timeline-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="formation">
+                    📚 Formations
+                </button>
+                <button onclick="filterTimelineEvents('webinaire')" class="timeline-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="webinaire">
+                    💻 Webinaires
+                </button>
+                <button onclick="filterTimelineEvents('conference')" class="timeline-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="conference">
+                    🎤 Conférences
+                </button>
+                <button onclick="filterTimelineEvents('autre')" class="timeline-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="autre">
+                    📌 Autres
+                </button>
+            </div>
+
+            <!-- Timeline -->
+            <div id="timeline-events" class="space-y-4">
+                <p class="text-gray-500 text-center py-8">Aucun événement pour le moment. Ajoutez-en un ci-dessus !</p>
+            </div>
         </div>
     </div>
 </div>

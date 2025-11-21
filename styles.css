@@ -176,3 +176,27 @@ h1, h2, h3, h4, h5, h6 {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
+
+/* Timeline Styles */
+.timeline-filter-btn {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.timeline-filter-btn.active {
+    background-color: #0d9488;
+    color: white;
+}
+
+.timeline-filter-btn:hover:not(.active) {
+    background-color: #d1d5db;
+}
+
+.timeline-event {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.timeline-event:hover {
+    transform: translateX(4px);
+}

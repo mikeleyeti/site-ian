@@ -1216,14 +1216,201 @@ async function deleteEcosystemContact(id) {
     }
 }
 
+// ===== GESTION DE LA FRISE CHRONOLOGIQUE (NEWSLETTER) =====
+
+let currentTimelineFilter = 'all';
+
 function loadNewsletterContent() {
-    const content = document.getElementById('newsletter-content');
-    content.innerHTML = `
-        <div class="space-y-6">
-            <h2 class="text-2xl font-bold text-gray-800">Newsletters</h2>
-            <p class="text-gray-600">Gérez vos newsletters trimestrielles ici.</p>
-        </div>
-    `;
+    // Initialiser le tableau si nécessaire
+    if (!appData.newsletters) {
+        appData.newsletters = [];
+    }
+
+    // Attacher le gestionnaire d'événement au formulaire
+    setTimeout(() => {
+        const form = document.getElementById('timeline-event-form');
+        if (form) {
+            form.addEventListener('submit', handleTimelineEventSubmit);
+        }
+        renderTimelineEvents();
+    }, 100);
+}
+
+async function handleTimelineEventSubmit(e) {
+    e.preventDefault();
+
+    // Récupérer les valeurs du formulaire
+    const type = document.getElementById('event-type').value;
+    const date = document.getElementById('event-date').value;
+    const title = document.getElementById('event-title').value;
+    const objective = document.getElementById('event-objective').value;
+    const description = document.getElementById('event-description').value;
+    const link = document.getElementById('event-link').value;
+
+    // Créer l'événement
+    const event = {
+        id: Date.now().toString(),
+        type,
+        date,
+        title,
+        objective,
+        description,
+        link,
+        createdAt: new Date().toISOString()
+    };
+
+    // Ajouter à la liste
+    appData.newsletters.push(event);
+
+    // Sauvegarder dans Supabase
+    await saveDataToFirestore();
+
+    // Réinitialiser le formulaire
+    e.target.reset();
+
+    // Rafraîchir l'affichage
+    renderTimelineEvents();
+
+    // Message de confirmation
+    showNotification('Événement ajouté avec succès !', 'success');
+}
+
+function renderTimelineEvents() {
+    const container = document.getElementById('timeline-events');
+    const countElement = document.getElementById('event-count');
+
+    if (!container || !countElement) return;
+
+    // Filtrer les événements
+    let events = appData.newsletters || [];
+    if (currentTimelineFilter !== 'all') {
+        events = events.filter(e => e.type === currentTimelineFilter);
+    }
+
+    // Trier par date (plus récent en premier)
+    events.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Mettre à jour le compteur
+    countElement.textContent = events.length;
+
+    // Afficher les événements
+    if (events.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-8">Aucun événement pour le moment. Ajoutez-en un ci-dessus !</p>';
+        return;
+    }
+
+    container.innerHTML = events.map(event => {
+        const eventIcon = getEventIcon(event.type);
+        const formattedDate = formatDate(event.date);
+        const isPast = new Date(event.date) < new Date();
+
+        return `
+            <div class="timeline-event border-l-4 ${isPast ? 'border-gray-400' : 'border-teal-500'} bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">${eventIcon}</span>
+                        <div>
+                            <h3 class="font-bold text-gray-800">${escapeHtml(event.title)}</h3>
+                            <p class="text-sm text-gray-600">${formattedDate}</p>
+                        </div>
+                    </div>
+                    <button onclick="deleteTimelineEvent('${event.id}')" class="text-red-500 hover:text-red-700 transition-colors" title="Supprimer">
+                        🗑️
+                    </button>
+                </div>
+
+                <div class="ml-10 space-y-2">
+                    <div class="flex items-start gap-2">
+                        <span class="text-sm font-medium text-gray-700">🎯 Objectif:</span>
+                        <p class="text-sm text-gray-700">${escapeHtml(event.objective)}</p>
+                    </div>
+
+                    ${event.description ? `
+                        <div class="flex items-start gap-2">
+                            <span class="text-sm font-medium text-gray-700">📋 Description:</span>
+                            <p class="text-sm text-gray-600">${escapeHtml(event.description)}</p>
+                        </div>
+                    ` : ''}
+
+                    ${event.link ? `
+                        <div class="flex items-start gap-2">
+                            <span class="text-sm font-medium text-gray-700">🔗 Lien:</span>
+                            <a href="${escapeHtml(event.link)}" target="_blank" class="text-sm text-teal-600 hover:underline break-all">${escapeHtml(event.link)}</a>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function filterTimelineEvents(filter) {
+    currentTimelineFilter = filter;
+
+    // Mettre à jour les boutons de filtre
+    document.querySelectorAll('.timeline-filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-teal-600', 'text-white');
+        btn.classList.add('bg-gray-200', 'text-gray-700');
+
+        if (btn.dataset.filter === filter) {
+            btn.classList.add('active', 'bg-teal-600', 'text-white');
+            btn.classList.remove('bg-gray-200', 'text-gray-700');
+        }
+    });
+
+    renderTimelineEvents();
+}
+
+async function deleteTimelineEvent(id) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
+        return;
+    }
+
+    appData.newsletters = appData.newsletters.filter(e => e.id !== id);
+    await saveDataToFirestore();
+    renderTimelineEvents();
+    showNotification('Événement supprimé', 'success');
+}
+
+function getEventIcon(type) {
+    const icons = {
+        formation: '📚',
+        webinaire: '💻',
+        conference: '🎤',
+        reunion: '👥',
+        atelier: '🛠️',
+        deadline: '⏰',
+        publication: '📰',
+        autre: '📌'
+    };
+    return icons[type] || '📌';
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString('fr-FR', options);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showNotification(message, type = 'info') {
+    // Créer une notification temporaire
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    // Supprimer après 3 secondes
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
 }
 
 function loadUsagesContent() {
