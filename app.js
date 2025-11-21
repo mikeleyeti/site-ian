@@ -1226,13 +1226,20 @@ function loadNewsletterContent() {
         appData.newsletters = [];
     }
 
-    // Attacher le gestionnaire d'événement au formulaire
+    // Attacher les gestionnaires d'événements aux formulaires
     setTimeout(() => {
-        const form = document.getElementById('timeline-event-form');
-        if (form) {
-            form.addEventListener('submit', handleTimelineEventSubmit);
+        const timelineForm = document.getElementById('timeline-event-form');
+        if (timelineForm) {
+            timelineForm.addEventListener('submit', handleTimelineEventSubmit);
         }
+
+        const actualitesForm = document.getElementById('actualites-form');
+        if (actualitesForm) {
+            actualitesForm.addEventListener('submit', handleActualiteSubmit);
+        }
+
         renderTimelineEvents();
+        renderActualites();
     }, 100);
 }
 
@@ -1469,6 +1476,191 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+// ===== GESTION DES ONGLETS NEWSLETTER =====
+
+function switchNewsletterTab(tab) {
+    // Mettre à jour les onglets
+    document.querySelectorAll('.newsletter-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById(`tab-${tab}`).classList.add('active');
+
+    // Mettre à jour le contenu
+    document.querySelectorAll('.newsletter-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`content-${tab}`).classList.add('active');
+
+    // Rafraîchir l'affichage selon l'onglet
+    if (tab === 'actualites') {
+        renderActualites();
+    } else if (tab === 'timeline') {
+        renderTimelineEvents();
+    }
+}
+
+// ===== GESTION DES ACTUALITÉS =====
+
+let currentActualitesFilter = 'all';
+
+async function handleActualiteSubmit(e) {
+    e.preventDefault();
+
+    try {
+        // Récupérer les valeurs du formulaire
+        const date = document.getElementById('actu-date').value;
+        const priority = document.getElementById('actu-priority').value;
+        const title = document.getElementById('actu-title').value;
+        const content = document.getElementById('actu-content').value;
+        const link = document.getElementById('actu-link').value;
+        const tags = document.getElementById('actu-tags').value;
+
+        // Créer l'objet actualité
+        const actualiteData = {
+            date,
+            priority,
+            title,
+            content,
+            link,
+            tags
+        };
+
+        // Créer l'actualité dans Supabase (toujours publique)
+        await supabaseService.createActualite(actualiteData);
+        showNotification('Actualité publiée avec succès !', 'success');
+
+        // Réinitialiser le formulaire
+        e.target.reset();
+
+        // Rafraîchir l'affichage
+        await renderActualites();
+
+    } catch (error) {
+        console.error('Erreur lors de la publication de l\'actualité:', error);
+        showNotification('Erreur lors de la publication de l\'actualité', 'error');
+    }
+}
+
+async function renderActualites() {
+    const container = document.getElementById('actualites-list');
+    const countElement = document.getElementById('actualites-count');
+
+    if (!container || !countElement) return;
+
+    try {
+        // Récupérer toutes les actualités
+        let actualites = await supabaseService.getActualites();
+
+        // Filtrer par priorité si nécessaire
+        if (currentActualitesFilter !== 'all') {
+            actualites = actualites.filter(a => a.priority === currentActualitesFilter);
+        }
+
+        // Mettre à jour le compteur
+        countElement.textContent = actualites.length;
+
+        // Afficher les actualités
+        if (actualites.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center py-8">Aucune actualité pour le moment. Ajoutez-en une ci-dessus !</p>';
+            return;
+        }
+
+        container.innerHTML = actualites.map(actu => {
+            const priorityBadge = getPriorityBadge(actu.priority);
+            const formattedDate = formatDate(actu.date);
+            const canDelete = actu.user_id === supabaseService.currentUser?.id;
+            const tagsArray = actu.tags ? actu.tags.split(',').map(t => t.trim()) : [];
+
+            return `
+                <div class="actualite-item bg-gray-50 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <h3 class="font-bold text-xl text-gray-800">${escapeHtml(actu.title)}</h3>
+                                ${priorityBadge}
+                            </div>
+                            <div class="flex items-center gap-3 text-sm text-gray-600">
+                                <span>📅 ${formattedDate}</span>
+                                <span>👤 ${escapeHtml(actu.author_name)}</span>
+                            </div>
+                        </div>
+                        ${canDelete ? `
+                            <button onclick="deleteActualite('${actu.id}')" class="text-red-500 hover:text-red-700 transition-colors" title="Supprimer">
+                                🗑️
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    <div class="space-y-3">
+                        <p class="text-gray-700 whitespace-pre-line">${escapeHtml(actu.content)}</p>
+
+                        ${actu.link ? `
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-gray-700">🔗 Lien:</span>
+                                <a href="${escapeHtml(actu.link)}" target="_blank" class="text-sm text-teal-600 hover:underline break-all">${escapeHtml(actu.link)}</a>
+                            </div>
+                        ` : ''}
+
+                        ${tagsArray.length > 0 ? `
+                            <div class="flex flex-wrap gap-2 mt-3">
+                                ${tagsArray.map(tag => `
+                                    <span class="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-xs font-medium">
+                                        #${escapeHtml(tag)}
+                                    </span>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Erreur lors du rendu des actualités:', error);
+        container.innerHTML = '<p class="text-red-500 text-center py-8">Erreur lors du chargement des actualités</p>';
+    }
+}
+
+function filterActualites(filter) {
+    currentActualitesFilter = filter;
+
+    // Mettre à jour les boutons de filtre
+    document.querySelectorAll('.actualites-filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-teal-600', 'text-white');
+        btn.classList.add('bg-gray-200', 'text-gray-700');
+
+        if (btn.dataset.filter === filter) {
+            btn.classList.add('active', 'bg-teal-600', 'text-white');
+            btn.classList.remove('bg-gray-200', 'text-gray-700');
+        }
+    });
+
+    renderActualites();
+}
+
+async function deleteActualite(id) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette actualité ?')) {
+        return;
+    }
+
+    try {
+        await supabaseService.deleteActualite(id);
+        await renderActualites();
+        showNotification('Actualité supprimée', 'success');
+    } catch (error) {
+        console.error('Erreur lors de la suppression:', error);
+        showNotification('Erreur lors de la suppression de l\'actualité', 'error');
+    }
+}
+
+function getPriorityBadge(priority) {
+    const badges = {
+        haute: '<span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">🔴 Haute</span>',
+        moyenne: '<span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">🟡 Moyenne</span>',
+        basse: '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">🟢 Basse</span>'
+    };
+    return badges[priority] || '';
 }
 
 function loadUsagesContent() {

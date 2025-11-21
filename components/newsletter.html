@@ -10,6 +10,21 @@
             <h1 class="text-3xl font-bold text-white mb-2">Newsletter d'informations</h1>
             <p class="text-teal-100">Créez et partagez vos newsletters trimestrielles</p>
         </header>
+
+        <!-- Onglets -->
+        <div class="bg-white rounded-t-xl shadow-lg">
+            <div class="flex border-b border-gray-200">
+                <button onclick="switchNewsletterTab('timeline')" id="tab-timeline" class="newsletter-tab active flex-1 px-6 py-4 text-left font-medium transition-colors">
+                    📅 Frise chronologique
+                </button>
+                <button onclick="switchNewsletterTab('actualites')" id="tab-actualites" class="newsletter-tab flex-1 px-6 py-4 text-left font-medium transition-colors">
+                    📰 Actualités du numérique éducatif
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenu onglet Timeline -->
+        <div id="content-timeline" class="newsletter-tab-content active">
         <!-- Formulaire d'ajout d'événement -->
         <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Ajouter un événement</h2>
@@ -128,5 +143,111 @@
                 <p class="text-gray-500 text-center py-8">Aucun événement pour le moment. Ajoutez-en un ci-dessus !</p>
             </div>
         </div>
+        </div>
+        <!-- Fin contenu onglet Timeline -->
+
+        <!-- Contenu onglet Actualités -->
+        <div id="content-actualites" class="newsletter-tab-content">
+        <!-- Formulaire d'ajout d'actualité -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Ajouter une actualité</h2>
+            <form id="actualites-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Date -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            📅 Date *
+                        </label>
+                        <input type="date" id="actu-date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Priorité -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            🎯 Priorité *
+                        </label>
+                        <select id="actu-priority" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            <option value="">Sélectionnez une priorité</option>
+                            <option value="haute">🔴 Haute</option>
+                            <option value="moyenne">🟡 Moyenne</option>
+                            <option value="basse">🟢 Basse</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Titre -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        📝 Titre *
+                    </label>
+                    <input type="text" id="actu-title" required placeholder="Ex: Nouvelle version de l'ENT académique" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                </div>
+
+                <!-- Contenu -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        📄 Contenu *
+                    </label>
+                    <textarea id="actu-content" required rows="5" placeholder="Décrivez l'actualité en détail..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"></textarea>
+                </div>
+
+                <!-- Lien utile -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        🔗 Lien utile
+                    </label>
+                    <input type="url" id="actu-link" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                </div>
+
+                <!-- Mots-clés -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        🏷️ Mots-clés
+                    </label>
+                    <input type="text" id="actu-tags" placeholder="Ex: IA, formation, ENT (séparés par des virgules)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                    <p class="text-xs text-gray-500 mt-1">Séparez les mots-clés par des virgules</p>
+                </div>
+
+                <!-- Bouton soumettre -->
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition-colors font-medium">
+                        ➕ Publier l'actualité
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Liste des actualités -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Actualités récentes</h2>
+                <div class="text-sm text-gray-500">
+                    <span id="actualites-count">0</span> actualité(s)
+                </div>
+            </div>
+
+            <!-- Filtres par priorité -->
+            <div class="mb-6 flex flex-wrap gap-2">
+                <button onclick="filterActualites('all')" class="actualites-filter-btn active px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="all">
+                    Toutes
+                </button>
+                <button onclick="filterActualites('haute')" class="actualites-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="haute">
+                    🔴 Priorité haute
+                </button>
+                <button onclick="filterActualites('moyenne')" class="actualites-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="moyenne">
+                    🟡 Priorité moyenne
+                </button>
+                <button onclick="filterActualites('basse')" class="actualites-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="basse">
+                    🟢 Priorité basse
+                </button>
+            </div>
+
+            <!-- Liste -->
+            <div id="actualites-list" class="space-y-4">
+                <p class="text-gray-500 text-center py-8">Aucune actualité pour le moment. Ajoutez-en une ci-dessus !</p>
+            </div>
+        </div>
+        </div>
+        <!-- Fin contenu onglet Actualités -->
     </div>
 </div>
