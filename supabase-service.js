@@ -577,6 +577,123 @@ class SupabaseService {
             throw error;
         }
     }
+
+    // ========== MÉTHODES POUR LES ACTUALITÉS ==========
+
+    // Créer une actualité
+    async createActualite(actualiteData) {
+        if (!this.initialized || !this.currentUser) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const userId = this.currentUser.id;
+            const displayName = this.getDisplayName();
+
+            const actualite = {
+                user_id: userId,
+                author_name: displayName,
+                author_email: this.currentUser.email,
+                date: actualiteData.date,
+                priority: actualiteData.priority,
+                title: actualiteData.title,
+                content: actualiteData.content,
+                link: actualiteData.link || null,
+                tags: actualiteData.tags || null
+            };
+
+            const { data, error } = await this.supabase
+                .from('actualites')
+                .insert(actualite)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('[Supabase] Actualité créée:', data);
+            return data;
+        } catch (error) {
+            console.error('Erreur lors de la création de l\'actualité:', error);
+            throw error;
+        }
+    }
+
+    // Récupérer toutes les actualités
+    async getActualites() {
+        if (!this.initialized) {
+            throw new Error('Service non initialisé');
+        }
+
+        try {
+            const { data, error } = await this.supabase
+                .from('actualites')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (error) throw error;
+
+            console.log('[Supabase] Actualités récupérées:', data?.length || 0);
+            return data || [];
+        } catch (error) {
+            console.error('Erreur lors de la récupération des actualités:', error);
+            throw error;
+        }
+    }
+
+    // Supprimer une actualité (seulement ses propres actualités)
+    async deleteActualite(actualiteId) {
+        if (!this.initialized || !this.currentUser) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const { error } = await this.supabase
+                .from('actualites')
+                .delete()
+                .eq('id', actualiteId)
+                .eq('user_id', this.currentUser.id); // Sécurité: seulement ses propres actualités
+
+            if (error) throw error;
+
+            console.log('[Supabase] Actualité supprimée:', actualiteId);
+            return true;
+        } catch (error) {
+            console.error('Erreur lors de la suppression de l\'actualité:', error);
+            throw error;
+        }
+    }
+
+    // Mettre à jour une actualité
+    async updateActualite(actualiteId, actualiteData) {
+        if (!this.initialized || !this.currentUser) {
+            throw new Error('Service non initialisé ou utilisateur non connecté');
+        }
+
+        try {
+            const { data, error } = await this.supabase
+                .from('actualites')
+                .update({
+                    date: actualiteData.date,
+                    priority: actualiteData.priority,
+                    title: actualiteData.title,
+                    content: actualiteData.content,
+                    link: actualiteData.link || null,
+                    tags: actualiteData.tags || null
+                })
+                .eq('id', actualiteId)
+                .eq('user_id', this.currentUser.id) // Sécurité: seulement ses propres actualités
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('[Supabase] Actualité mise à jour:', data);
+            return data;
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour de l\'actualité:', error);
+            throw error;
+        }
+    }
 }
 
 // Instance globale

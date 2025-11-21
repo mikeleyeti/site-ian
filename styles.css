@@ -200,3 +200,56 @@ h1, h2, h3, h4, h5, h6 {
 .timeline-event:hover {
     transform: translateX(4px);
 }
+
+/* Newsletter Tabs Styles */
+.newsletter-tab {
+    background-color: transparent;
+    color: #6b7280;
+    border-bottom: 3px solid transparent;
+}
+
+.newsletter-tab.active {
+    color: #0d9488;
+    border-bottom-color: #0d9488;
+    background-color: #f9fafb;
+}
+
+.newsletter-tab:hover:not(.active) {
+    background-color: #f3f4f6;
+}
+
+.newsletter-tab-content {
+    display: none;
+}
+
+.newsletter-tab-content.active {
+    display: block;
+}
+
+/* Actualités Styles */
+.actualites-priority-btn,
+.actualites-trimester-btn {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.actualites-priority-btn.active,
+.actualites-trimester-btn.active {
+    background-color: #0d9488;
+    color: white;
+}
+
+.actualites-priority-btn:hover:not(.active),
+.actualites-trimester-btn:hover:not(.active) {
+    background-color: #d1d5db;
+}
+
+.actualite-item {
+    position: relative;
+    transition: all 0.3s ease;
+    border-left: 4px solid #0d9488;
+}
+
+.actualite-item:hover {
+    transform: translateY(-2px);
+}

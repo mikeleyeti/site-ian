@@ -1,10 +1,10 @@
 -- ============================================
--- Migration: Ajout de la table public_events
--- Pour gérer les événements publics de la timeline
+-- Migration: Ajout de la table actualites
+-- Pour gérer les actualités du numérique éducatif
 -- ============================================
 
--- Créer la table pour les événements publics
-CREATE TABLE IF NOT EXISTS public_events (
+-- Créer la table pour les actualités publiques
+CREATE TABLE IF NOT EXISTS actualites (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     -- Référence à l'utilisateur créateur
@@ -14,13 +14,13 @@ CREATE TABLE IF NOT EXISTS public_events (
     author_name TEXT,
     author_email TEXT,
 
-    -- Données de l'événement
-    type TEXT NOT NULL,
-    title TEXT NOT NULL,
+    -- Données de l'actualité
     date DATE NOT NULL,
-    objective TEXT NOT NULL,
-    description TEXT,
+    priority TEXT NOT NULL CHECK (priority IN ('haute', 'moyenne', 'basse')),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
     link TEXT,
+    tags TEXT, -- Stocké comme chaîne, séparé par des virgules
 
     -- Métadonnées
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -28,39 +28,40 @@ CREATE TABLE IF NOT EXISTS public_events (
 );
 
 -- Index pour améliorer les performances
-CREATE INDEX IF NOT EXISTS public_events_user_id_idx ON public_events(user_id);
-CREATE INDEX IF NOT EXISTS public_events_date_idx ON public_events(date);
-CREATE INDEX IF NOT EXISTS public_events_type_idx ON public_events(type);
+CREATE INDEX IF NOT EXISTS actualites_user_id_idx ON actualites(user_id);
+CREATE INDEX IF NOT EXISTS actualites_date_idx ON actualites(date DESC);
+CREATE INDEX IF NOT EXISTS actualites_priority_idx ON actualites(priority);
+CREATE INDEX IF NOT EXISTS actualites_created_at_idx ON actualites(created_at DESC);
 
 -- ============================================
 -- Row Level Security (RLS) Policies
 -- ============================================
 
 -- Activer RLS
-ALTER TABLE public_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE actualites ENABLE ROW LEVEL SECURITY;
 
--- Policy: Tous les utilisateurs authentifiés peuvent lire les événements publics
-CREATE POLICY "Authenticated users can read public events"
-    ON public_events
+-- Policy: Tous les utilisateurs authentifiés peuvent lire les actualités
+CREATE POLICY "Authenticated users can read actualites"
+    ON actualites
     FOR SELECT
     USING (auth.role() = 'authenticated');
 
--- Policy: Les utilisateurs peuvent créer leurs propres événements
-CREATE POLICY "Users can insert own events"
-    ON public_events
+-- Policy: Les utilisateurs peuvent créer leurs propres actualités
+CREATE POLICY "Users can insert own actualites"
+    ON actualites
     FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
--- Policy: Les utilisateurs peuvent mettre à jour leurs propres événements
-CREATE POLICY "Users can update own events"
-    ON public_events
+-- Policy: Les utilisateurs peuvent mettre à jour leurs propres actualités
+CREATE POLICY "Users can update own actualites"
+    ON actualites
     FOR UPDATE
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
--- Policy: Les utilisateurs peuvent supprimer leurs propres événements
-CREATE POLICY "Users can delete own events"
-    ON public_events
+-- Policy: Les utilisateurs peuvent supprimer leurs propres actualités
+CREATE POLICY "Users can delete own actualites"
+    ON actualites
     FOR DELETE
     USING (auth.uid() = user_id);
 
@@ -68,8 +69,8 @@ CREATE POLICY "Users can delete own events"
 -- Trigger pour auto-update des timestamps
 -- ============================================
 
-CREATE TRIGGER update_public_events_updated_at
-    BEFORE UPDATE ON public_events
+CREATE TRIGGER update_actualites_updated_at
+    BEFORE UPDATE ON actualites
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
