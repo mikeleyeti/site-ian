@@ -1239,109 +1239,155 @@ function loadNewsletterContent() {
 async function handleTimelineEventSubmit(e) {
     e.preventDefault();
 
-    // Récupérer les valeurs du formulaire
-    const type = document.getElementById('event-type').value;
-    const date = document.getElementById('event-date').value;
-    const title = document.getElementById('event-title').value;
-    const objective = document.getElementById('event-objective').value;
-    const description = document.getElementById('event-description').value;
-    const link = document.getElementById('event-link').value;
+    try {
+        // Récupérer les valeurs du formulaire
+        const type = document.getElementById('event-type').value;
+        const date = document.getElementById('event-date').value;
+        const title = document.getElementById('event-title').value;
+        const objective = document.getElementById('event-objective').value;
+        const description = document.getElementById('event-description').value;
+        const link = document.getElementById('event-link').value;
+        const visibility = document.getElementById('event-visibility').value;
 
-    // Créer l'événement
-    const event = {
-        id: Date.now().toString(),
-        type,
-        date,
-        title,
-        objective,
-        description,
-        link,
-        createdAt: new Date().toISOString()
-    };
+        // Créer l'objet événement
+        const eventData = {
+            type,
+            date,
+            title,
+            objective,
+            description,
+            link
+        };
 
-    // Ajouter à la liste
-    appData.newsletters.push(event);
+        if (visibility === 'public') {
+            // Créer un événement public dans la table public_events
+            await supabaseService.createPublicEvent(eventData);
+            showNotification('Événement public ajouté avec succès !', 'success');
+        } else {
+            // Créer un événement privé dans appData.newsletters
+            const privateEvent = {
+                id: Date.now().toString(),
+                ...eventData,
+                visibility: 'private',
+                createdAt: new Date().toISOString()
+            };
+            appData.newsletters.push(privateEvent);
+            await saveDataToFirestore();
+            showNotification('Événement privé ajouté avec succès !', 'success');
+        }
 
-    // Sauvegarder dans Supabase
-    await saveDataToFirestore();
+        // Réinitialiser le formulaire
+        e.target.reset();
 
-    // Réinitialiser le formulaire
-    e.target.reset();
+        // Rafraîchir l'affichage
+        await renderTimelineEvents();
 
-    // Rafraîchir l'affichage
-    renderTimelineEvents();
-
-    // Message de confirmation
-    showNotification('Événement ajouté avec succès !', 'success');
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout de l\'événement:', error);
+        showNotification('Erreur lors de l\'ajout de l\'événement', 'error');
+    }
 }
 
-function renderTimelineEvents() {
+async function renderTimelineEvents() {
     const container = document.getElementById('timeline-events');
     const countElement = document.getElementById('event-count');
 
     if (!container || !countElement) return;
 
-    // Filtrer les événements
-    let events = appData.newsletters || [];
-    if (currentTimelineFilter !== 'all') {
-        events = events.filter(e => e.type === currentTimelineFilter);
-    }
+    try {
+        // Récupérer les événements privés
+        let privateEvents = (appData.newsletters || []).map(e => ({ ...e, visibility: 'private', isOwn: true }));
 
-    // Trier par date (plus récent en premier)
-    events.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // Récupérer les événements publics
+        let publicEvents = [];
+        try {
+            const publicEventsData = await supabaseService.getPublicEvents();
+            publicEvents = publicEventsData.map(e => ({
+                ...e,
+                visibility: 'public',
+                isOwn: e.user_id === supabaseService.currentUser?.id
+            }));
+        } catch (error) {
+            console.error('Erreur lors de la récupération des événements publics:', error);
+        }
 
-    // Mettre à jour le compteur
-    countElement.textContent = events.length;
+        // Combiner tous les événements
+        let allEvents = [...privateEvents, ...publicEvents];
 
-    // Afficher les événements
-    if (events.length === 0) {
-        container.innerHTML = '<p class="text-gray-500 text-center py-8">Aucun événement pour le moment. Ajoutez-en un ci-dessus !</p>';
-        return;
-    }
+        // Filtrer par type si nécessaire
+        if (currentTimelineFilter !== 'all') {
+            allEvents = allEvents.filter(e => e.type === currentTimelineFilter);
+        }
 
-    container.innerHTML = events.map(event => {
-        const eventIcon = getEventIcon(event.type);
-        const formattedDate = formatDate(event.date);
-        const isPast = new Date(event.date) < new Date();
+        // Trier par date (plus récent en premier)
+        allEvents.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        return `
-            <div class="timeline-event border-l-4 ${isPast ? 'border-gray-400' : 'border-teal-500'} bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div class="flex justify-between items-start mb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">${eventIcon}</span>
-                        <div>
-                            <h3 class="font-bold text-gray-800">${escapeHtml(event.title)}</h3>
-                            <p class="text-sm text-gray-600">${formattedDate}</p>
+        // Mettre à jour le compteur
+        countElement.textContent = allEvents.length;
+
+        // Afficher les événements
+        if (allEvents.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center py-8">Aucun événement pour le moment. Ajoutez-en un ci-dessus !</p>';
+            return;
+        }
+
+        container.innerHTML = allEvents.map(event => {
+            const eventIcon = getEventIcon(event.type);
+            const formattedDate = formatDate(event.date);
+            const isPast = new Date(event.date) < new Date();
+            const isPublic = event.visibility === 'public';
+            const canDelete = event.isOwn;
+
+            return `
+                <div class="timeline-event border-l-4 ${isPast ? 'border-gray-400' : 'border-teal-500'} bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">${eventIcon}</span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-gray-800">${escapeHtml(event.title)}</h3>
+                                    <span class="text-xs px-2 py-1 rounded ${isPublic ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-700'}">
+                                        ${isPublic ? '🌐 Public' : '🔒 Privé'}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600">${formattedDate}</p>
+                                ${isPublic && event.author_name ? `<p class="text-xs text-gray-500">Par ${escapeHtml(event.author_name)}</p>` : ''}
+                            </div>
                         </div>
+                        ${canDelete ? `
+                            <button onclick="deleteTimelineEvent('${event.id || event.user_id}', '${event.visibility}')" class="text-red-500 hover:text-red-700 transition-colors" title="Supprimer">
+                                🗑️
+                            </button>
+                        ` : ''}
                     </div>
-                    <button onclick="deleteTimelineEvent('${event.id}')" class="text-red-500 hover:text-red-700 transition-colors" title="Supprimer">
-                        🗑️
-                    </button>
-                </div>
 
-                <div class="ml-10 space-y-2">
-                    <div class="flex items-start gap-2">
-                        <span class="text-sm font-medium text-gray-700">🎯 Objectif:</span>
-                        <p class="text-sm text-gray-700">${escapeHtml(event.objective)}</p>
+                    <div class="ml-10 space-y-2">
+                        <div class="flex items-start gap-2">
+                            <span class="text-sm font-medium text-gray-700">🎯 Objectif:</span>
+                            <p class="text-sm text-gray-700">${escapeHtml(event.objective)}</p>
+                        </div>
+
+                        ${event.description ? `
+                            <div class="flex items-start gap-2">
+                                <span class="text-sm font-medium text-gray-700">📋 Description:</span>
+                                <p class="text-sm text-gray-600">${escapeHtml(event.description)}</p>
+                            </div>
+                        ` : ''}
+
+                        ${event.link ? `
+                            <div class="flex items-start gap-2">
+                                <span class="text-sm font-medium text-gray-700">🔗 Lien:</span>
+                                <a href="${escapeHtml(event.link)}" target="_blank" class="text-sm text-teal-600 hover:underline break-all">${escapeHtml(event.link)}</a>
+                            </div>
+                        ` : ''}
                     </div>
-
-                    ${event.description ? `
-                        <div class="flex items-start gap-2">
-                            <span class="text-sm font-medium text-gray-700">📋 Description:</span>
-                            <p class="text-sm text-gray-600">${escapeHtml(event.description)}</p>
-                        </div>
-                    ` : ''}
-
-                    ${event.link ? `
-                        <div class="flex items-start gap-2">
-                            <span class="text-sm font-medium text-gray-700">🔗 Lien:</span>
-                            <a href="${escapeHtml(event.link)}" target="_blank" class="text-sm text-teal-600 hover:underline break-all">${escapeHtml(event.link)}</a>
-                        </div>
-                    ` : ''}
                 </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Erreur lors du rendu des événements:', error);
+        container.innerHTML = '<p class="text-red-500 text-center py-8">Erreur lors du chargement des événements</p>';
+    }
 }
 
 function filterTimelineEvents(filter) {
@@ -1361,15 +1407,27 @@ function filterTimelineEvents(filter) {
     renderTimelineEvents();
 }
 
-async function deleteTimelineEvent(id) {
+async function deleteTimelineEvent(id, visibility) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
         return;
     }
 
-    appData.newsletters = appData.newsletters.filter(e => e.id !== id);
-    await saveDataToFirestore();
-    renderTimelineEvents();
-    showNotification('Événement supprimé', 'success');
+    try {
+        if (visibility === 'public') {
+            // Supprimer un événement public
+            await supabaseService.deletePublicEvent(id);
+        } else {
+            // Supprimer un événement privé
+            appData.newsletters = appData.newsletters.filter(e => e.id !== id);
+            await saveDataToFirestore();
+        }
+
+        await renderTimelineEvents();
+        showNotification('Événement supprimé', 'success');
+    } catch (error) {
+        console.error('Erreur lors de la suppression:', error);
+        showNotification('Erreur lors de la suppression de l\'événement', 'error');
+    }
 }
 
 function getEventIcon(type) {
