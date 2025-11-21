@@ -1669,10 +1669,12 @@ function getTrimesterFromDate(dateString) {
     const date = new Date(dateString);
     const month = date.getMonth() + 1; // 0-indexed, donc +1
 
-    if (month >= 1 && month <= 3) return 'Q1';
-    if (month >= 4 && month <= 6) return 'Q2';
-    if (month >= 7 && month <= 9) return 'Q3';
-    if (month >= 10 && month <= 12) return 'Q4';
+    // Trimestres de l'Éducation Nationale
+    if (month >= 9 && month <= 12) return 'T1'; // Septembre à Décembre
+    if (month >= 1 && month <= 3) return 'T2';  // Janvier à Mars
+    if (month >= 4 && month <= 7) return 'T3';  // Avril à Juillet
+    // Août (month === 8) = vacances d'été, pas de trimestre
+    return null;
 }
 
 async function deleteActualite(id) {
