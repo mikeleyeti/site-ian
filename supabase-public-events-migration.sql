@@ -5,7 +5,7 @@
 
 -- Créer la table pour les événements publics
 CREATE TABLE IF NOT EXISTS public_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     -- Référence à l'utilisateur créateur
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
